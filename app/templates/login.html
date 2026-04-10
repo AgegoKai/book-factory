@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="center-card auth-card">
+  <div class="eyebrow">Login page</div>
+  <h1>Zaloguj się do Book Factory</h1>
+  <p class="muted">Domyślny admin tworzy się z .env przy pierwszym starcie.</p>
+  {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="/login" class="stack">
+    <label>Email<input type="email" name="email" required></label>
+    <label>Hasło<input type="password" name="password" required></label>
+    <button type="submit">Zaloguj</button>
+  </form>
+</section>
+{% endblock %}

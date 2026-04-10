@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Projekt</div>
+    <h1>{{ project.title }}</h1>
+    <p class="muted">{{ project.concept }}</p>
+  </div>
+  <div class="actions-row">
+    <form method="post" action="/projects/{{ project.id }}/run"><button type="submit">Uruchom pełną automatyzację</button></form>
+    <a class="button-link secondary" href="/projects/{{ project.id }}/export/docx">DOCX</a>
+    <a class="button-link secondary" href="/projects/{{ project.id }}/export/pdf">PDF</a>
+  </div>
+</div>
+<div class="grid detail-grid">
+  <section class="card"><h3>Status</h3><p>{{ project.status }}</p><p class="meta">Provider: {{ project.llm_provider_used or '-' }}</p><p class="meta">{{ project.target_pages }} stron • {{ project.target_words }} słów</p><p class="meta">Outline: {{ metrics.outline_words }} słów • Draft: {{ metrics.draft_words }} słów • Edit: {{ metrics.edited_words }} słów</p></section>
+  <section class="card"><h3>Zakładka pomysłów</h3><form class="stack" method="post" action="/projects/{{ project.id }}/ideas"><label>Nisza<input type="text" name="niche" value="{{ project.title }}"></label><label>Notatki<textarea name="notes" rows="4">{{ project.inspiration_sources }}</textarea></label><button type="submit">Wygeneruj pomysły / research</button></form><pre>{{ project.idea_research or 'Brak wygenerowanego researchu.' }}</pre></section>
+</div>
+<form class="stack" method="post" action="/projects/{{ project.id }}/save">
+<div class="grid detail-grid long">
+  <section class="card"><h3>1. Konspekt</h3><textarea name="outline_text" rows="12">{{ project.outline_text }}</textarea></section>
+  <section class="card"><h3>2. Prompty rozdziałów</h3><textarea name="chapter_prompts" rows="12">{{ project.chapter_prompts }}</textarea></section>
+  <section class="card"><h3>3. Draft książki</h3><textarea name="manuscript_text" rows="18">{{ project.manuscript_text }}</textarea></section>
+  <section class="card"><h3>4. Redakcja</h3><textarea name="edited_text" rows="18">{{ project.edited_text }}</textarea></section>
+  <section class="card"><h3>5. SEO Amazon</h3><textarea name="seo_description" rows="10">{{ project.seo_description }}</textarea></section>
+  <section class="card"><h3>6. Okładka</h3><textarea name="cover_brief" rows="10">{{ project.cover_brief }}</textarea></section>
+  <section class="card"><h3>7. Publikacja</h3><textarea name="publish_checklist" rows="10">{{ project.publish_checklist }}</textarea></section>
+</div>
+<div class="actions-row"><button type="submit">Zapisz poprawki ręczne</button></div>
+</form>
+{% endblock %}

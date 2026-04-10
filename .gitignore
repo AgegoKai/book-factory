@@ -1,0 +1,6 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+book_factory.db
+.pytest_cache/

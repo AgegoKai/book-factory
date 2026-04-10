@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Dashboard</div>
+    <h1>Hej {{ user.email }}</h1>
+    <p class="muted">Twórz projekty, uruchamiaj pełny pipeline książki i eksportuj do PDF/DOCX.</p>
+  </div>
+  <a class="button-link" href="/projects/new">+ Nowy projekt</a>
+</div>
+<div class="grid cards">
+  {% for project in projects %}
+  <a class="card" href="/projects/{{ project.id }}">
+    <div class="card-top">
+      <strong>{{ project.title }}</strong>
+      <span class="badge">{{ project.status }}</span>
+    </div>
+    <p>{{ project.concept[:180] }}{% if project.concept|length > 180 %}...{% endif %}</p>
+    <div class="meta">{{ project.target_pages }} stron • {{ project.target_words }} słów • {{ project.llm_provider_used or 'not run yet' }}</div>
+  </a>
+  {% else %}
+  <div class="card empty">
+    <strong>Brak projektów</strong>
+    <p>Zacznij od nowego projektu książki.</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

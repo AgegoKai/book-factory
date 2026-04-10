@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title or 'Book Factory' }}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="shell">
+    {% if user %}
+    <aside class="sidebar">
+      <div>
+        <div class="brand">Book Factory</div>
+        <div class="muted">Automatyzacja pisania książek</div>
+      </div>
+      <nav>
+        <a href="/">Dashboard</a>
+        <a href="/projects/new">Nowy projekt</a>
+      </nav>
+      <form action="/logout" method="post">
+        <button class="ghost" type="submit">Wyloguj</button>
+      </form>
+    </aside>
+    {% endif %}
+    <main class="main">{% block content %}{% endblock %}</main>
+  </div>
+</body>
+</html>

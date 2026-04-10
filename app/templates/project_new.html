@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-head"><div><div class="eyebrow">Nowy projekt</div><h1>Utwórz książkę</h1></div></div>
+<form class="stack card wide" method="post" action="/projects">
+  <label>Tytuł<input type="text" name="title" required></label>
+  <label>Pomysł / zawartość<textarea name="concept" rows="5" required></textarea></label>
+  <label>Źródła inspiracji / strony<textarea name="inspiration_sources" rows="4"></textarea></label>
+  <div class="split">
+    <label>Ilość stron<input type="number" name="target_pages" value="20" min="1"></label>
+    <label>Ilość słów<input type="number" name="target_words" value="5000" min="500"></label>
+  </div>
+  <label>Styl / preferencje<textarea name="tone_preferences" rows="4">Dłuższe, naturalne zdania, ludzki styl, bez sztywnego tonu, chyba że temat wymaga krótszych cięć.</textarea></label>
+  <label>Język<input type="text" name="language" value="pl"></label>
+  <button type="submit">Utwórz projekt</button>
+</form>
+{% endblock %}
