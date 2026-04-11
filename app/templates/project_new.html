@@ -6,7 +6,7 @@
   <div>
     <div class="eyebrow">Nowy projekt</div>
     <h1>Stwórz book project</h1>
-    <p class="subtitle">Wypełnij 4 kroki wizarda — nie przejdziesz dalej bez wymaganych pól.</p>
+    <p class="subtitle">Wypełnij 5 kroków wizarda — im więcej szczegółów, tym lepsza jakość książki.</p>
   </div>
 </div>
 
@@ -19,7 +19,7 @@
     </div>
     <div class="wizard-step-indicator" data-step="1">
       <div class="wizard-step-dot">2</div>
-      <div class="wizard-step-label">Rozmiar</div>
+      <div class="wizard-step-label">Rynek</div>
     </div>
     <div class="wizard-step-indicator" data-step="2">
       <div class="wizard-step-dot">3</div>
@@ -27,6 +27,10 @@
     </div>
     <div class="wizard-step-indicator" data-step="3">
       <div class="wizard-step-dot">4</div>
+      <div class="wizard-step-label">Autor</div>
+    </div>
+    <div class="wizard-step-indicator" data-step="4">
+      <div class="wizard-step-dot">5</div>
       <div class="wizard-step-label">Prompt</div>
     </div>
   </div>
@@ -49,19 +53,25 @@
           Pomysł / zawartość *
           <div class="textarea-wrap">
             <textarea name="concept" id="concept" rows="6" required data-wordcount
-              placeholder="Opisz o czym jest książka, kto jest targetem, jakie problemy rozwiązuje, jaki jest główny przekaz..."></textarea>
+              placeholder="Opisz o czym jest książka, jaki jest główny przekaz, co czytelnik wyniesie, jakie problemy rozwiązuje..."></textarea>
             <span class="word-counter">0 słów</span>
           </div>
           <span class="hint">Im więcej szczegółów, tym lepsza jakość konspektu i draftu</span>
         </label>
+        <label>
+          Wiedza / ekspertyza autora
+          <textarea name="knowledge_to_share" rows="3"
+            placeholder="Jaką wiedzę i doświadczenie wnosi autor? Co sprawia, że jest wiarygodny w tym temacie?"></textarea>
+          <span class="hint">Np. &quot;15 lat pracy jako neurochirurg, bestsellery na Amazon&quot;</span>
+        </label>
       </div>
     </div>
 
-    <!-- Step 1: Rozmiar -->
+    <!-- Step 1: Rozmiar i rynek -->
     <div class="wizard-panel wizard-card" data-step="1" style="display:none;">
       <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--text-primary);">
         <i data-lucide="bar-chart-2" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--accent-light);"></i>
-        Rozmiar książki
+        Rozmiar i rynek docelowy
       </h2>
       <div class="stack">
         <div class="form-row">
@@ -76,52 +86,121 @@
             <span class="hint">12k-15k = ok. 20 stron</span>
           </label>
         </div>
+
+        <div class="form-row">
+          <label>
+            Język książki
+            <select name="language">
+              <option value="pl" selected>🇵🇱 Polski</option>
+              <option value="en">🇬🇧 English</option>
+              <option value="de">🇩🇪 Deutsch</option>
+              <option value="es">🇪🇸 Español</option>
+              <option value="fr">🇫🇷 Français</option>
+            </select>
+          </label>
+          <label>
+            Rynek docelowy (Amazon)
+            <select name="target_market">
+              <option value="en-US">🇺🇸 Amazon US (English)</option>
+              <option value="de-DE">🇩🇪 Amazon DE (Deutsch)</option>
+              <option value="es-ES">🇪🇸 Amazon ES (Español)</option>
+              <option value="pl-PL">🇵🇱 Amazon PL (Polski)</option>
+            </select>
+            <span class="hint">Wpływa na SEO, keywords i drzewo katalogu</span>
+          </label>
+        </div>
+
         <label>
-          Język
-          <select name="language">
-            <option value="pl" selected>🇵🇱 Polski</option>
-            <option value="en">🇬🇧 English</option>
-            <option value="de">🇩🇪 Deutsch</option>
-            <option value="fr">🇫🇷 Français</option>
-          </select>
+          Do kogo skierowana jest ta książka? *
+          <textarea name="target_audience" rows="3" required
+            placeholder="np. Przedsiębiorcy 35-50 lat szukający work-life balance. Osoby po wypaleniu zawodowym. Menedżerowie chcący lepiej zarządzać czasem."></textarea>
+          <span class="hint">Im dokładniejsza persona, tym lepsze SEO i treść</span>
         </label>
+
         <div class="alert-info alert" style="font-size:0.8rem;">
-          <strong>Wskazówka:</strong> Dla książki 12 000–15 000 słów (20 stron A4) pipeline generuje tekst rozdział po rozdziale dla zachowania ciągłości i uniknięcia timeoutów.
+          <strong>Wskazówka rynkowa:</strong> Niemcy oczekują konkretnych danych i faktów, Amerykanie reagują na storytelling i transformację, Hiszpanie cenią emocje i relacje. System dostosuje SEO i katalog do wybranego rynku.
         </div>
       </div>
     </div>
 
-    <!-- Step 2: Styl i inspiracje -->
+    <!-- Step 2: Styl i emocje -->
     <div class="wizard-panel wizard-card" data-step="2" style="display:none;">
       <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--text-primary);">
         <i data-lucide="feather" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--accent-light);"></i>
-        Styl i inspiracje
+        Styl, emocje i przekaz
       </h2>
       <div class="stack">
         <label>
-          Preferencje stylu / tonu
-          <textarea name="tone_preferences" rows="4"
+          Styl pisania
+          <select name="writing_style">
+            <option value="">— wybierz styl —</option>
+            <option value="konwersacyjny i przystępny">Konwersacyjny i przystępny — jak rozmowa z przyjacielem</option>
+            <option value="naukowy i precyzyjny">Naukowy i precyzyjny — fakty, dane, odsyłacze</option>
+            <option value="motywacyjny i inspirujący">Motywacyjny i inspirujący — call-to-action, storytelling</option>
+            <option value="narracyjny storytelling">Narracyjny storytelling — opowieści, metafory, przykłady</option>
+            <option value="praktyczny how-to">Praktyczny how-to — kroki, listy, ćwiczenia</option>
+            <option value="humorystyczny i lekki">Humorystyczny i lekki — anegdoty, dowcip, dystans</option>
+            <option value="akademicki i formalny">Akademicki i formalny — język ekspercki, bez uproszczeń</option>
+          </select>
+          <span class="hint">Decyduje o tonie całej książki i systemu prompta</span>
+        </label>
+        <label>
+          Preferencje stylu / tonu (szczegóły)
+          <textarea name="tone_preferences" rows="3"
             placeholder="np. Dłuższe, naturalne zdania. Ludzki styl, bez sztywnego tonu akademickiego. Interstellar-style narracja z detalami technicznymi.">Dłuższe, naturalne zdania, ludzki styl, bez sztywnego tonu, chyba że temat wymaga precyzji. Show, don't tell.</textarea>
-          <span class="hint">To trafi do systemu jako wskazówka stylistyczna dla każdego kroku</span>
+          <span class="hint">To trafi do systemu jako wskazówka stylistyczna dla każdego kroku pipeline</span>
+        </label>
+        <label>
+          Jakie emocje ma wzbudzać ta książka?
+          <textarea name="emotions_to_convey" rows="3"
+            placeholder="np. Nadzieja i poczucie sprawczości. Ciekawość i zdziwienie. Motywacja do działania natychmiast po przeczytaniu. Bezpieczeństwo i zrozumienie."></textarea>
+          <span class="hint">Używane w SEO, okładce i systemie prompta pisarza</span>
         </label>
         <label>
           Źródła inspiracji / notatki / linki
-          <textarea name="inspiration_sources" rows="5"
+          <textarea name="inspiration_sources" rows="4"
             placeholder="Wklej linki, nazwy książek, fragmenty, notatki z badań, podobne tytuły..."></textarea>
           <span class="hint">Model będzie czerpał z tych wskazówek przy tworzeniu konspektu</span>
         </label>
       </div>
     </div>
 
-    <!-- Step 3: System prompt -->
+    <!-- Step 3: Autor i odbiorcy -->
     <div class="wizard-panel wizard-card" data-step="3" style="display:none;">
+      <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--text-primary);">
+        <i data-lucide="user" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--accent-light);"></i>
+        Profil autora
+      </h2>
+      <div class="stack">
+        <div class="alert-info alert" style="font-size:0.79rem;">
+          Profil autora jest używany w SEO, okładce i checkliście publikacji. Pomaga AI lepiej dopasować głos narracyjny.
+        </div>
+        <label>
+          Opis autora / bio
+          <textarea name="author_bio" rows="5"
+            placeholder="np. Jan Kowalski — coach biznesowy z 15-letnim doświadczeniem, autor 3 bestsellerów na Amazon, wykładowca na Akademii Leona Koźmińskiego. Specjalizuje się w produktywności i zarządzaniu energią."></textarea>
+          <span class="hint">Używane w SEO, podpisie na okładce i checkliście KDP</span>
+        </label>
+        <label>
+          Strona www / social media autora
+          <input type="text" name="" placeholder="np. https://jankowalski.pl lub @jankowalski" disabled style="opacity:0.5;cursor:not-allowed;">
+          <span class="hint" style="color:var(--amber);">Wkrótce — integracja z profilem autora na Amazon Author Central</span>
+        </label>
+        <div class="alert alert-info" style="font-size:0.79rem;margin-top:4px;">
+          <strong>Tip:</strong> Po stworzeniu projektu możesz edytować bio w zakładce Edytor i regenerować SEO oraz brief okładki.
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: System prompt -->
+    <div class="wizard-panel wizard-card" data-step="4" style="display:none;">
       <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--text-primary);">
         <i data-lucide="terminal" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--accent-light);"></i>
         System prompt pisarza
       </h2>
       <div class="stack">
         <div class="alert-info alert" style="font-size:0.79rem;">
-          Ten prompt jest używany do kroków <strong>Draft</strong> i <strong>Redakcja</strong>. Możesz go dostosować lub zostawić domyślny. Zmiany możesz robić też po stworzeniu projektu.
+          Ten prompt jest używany do kroków <strong>Draft</strong> i <strong>Redakcja</strong>. Możesz go dostosować lub zostawić domyślny. Zmiany możesz robić też po stworzeniu projektu w zakładce Edytor.
         </div>
         <label>
           System prompt (opcjonalnie — zostaw puste dla domyślnego)
@@ -140,7 +219,7 @@
         <i data-lucide="arrow-left"></i> Wstecz
       </button>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span id="stepCounter" style="font-size:0.78rem;color:var(--text-muted);">Krok 1 z 4</span>
+        <span id="stepCounter" style="font-size:0.78rem;color:var(--text-muted);">Krok 1 z 5</span>
         <button type="button" id="nextBtn">
           Dalej <i data-lucide="arrow-right"></i>
         </button>
@@ -154,7 +233,7 @@
 
 <script>
 (() => {
-  const TOTAL = 4;
+  const TOTAL = 5;
   const panels = [...document.querySelectorAll('.wizard-panel')];
   const indicators = [...document.querySelectorAll('.wizard-step-indicator')];
   const prevBtn = document.getElementById('prevBtn');
@@ -187,7 +266,7 @@
     submitBtn.style.display = current === TOTAL - 1 ? 'inline-flex' : 'none';
     const valid = panelValid(current);
     nextBtn.disabled = !valid;
-    submitBtn.disabled = false; // last step (system prompt) is optional
+    submitBtn.disabled = false;
     counter.textContent = `Krok ${current + 1} z ${TOTAL}`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }

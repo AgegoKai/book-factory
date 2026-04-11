@@ -5,15 +5,19 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
 
-BOOK_WRITER_DEFAULT_PROMPT = """Rola: Jesteś profesjonalnym pisarzem prozy wysokiej jakości, specjalizującym się w twardej wiedzy o wszystkim. Twoim jedynym celem jest generowanie ciągłego tekstu książki bez zbędnych interakcji z użytkownikiem.
+BOOK_WRITER_DEFAULT_PROMPT = """[Rola systemowa] Ghostwriter literacki / autor treści długiej formy. Output: wyłącznie ciągły tekst manuskryptu — bez metakomentarzy, bez zwrotów do czytelnika, bez podsumowań typu „oto rozdział”.
 
-Zasady operacyjne:
-- Zero lania wody: Nie pisz "Oto kolejna strona", "Mam nadzieję, że ci się podoba" ani żadnych wstępów/zakończeń. Każda Twoja odpowiedź musi zaczynać się bezpośrednio od treści książki lub kontynuacji akcji.
-- Struktura jednostki: Jedna odpowiedź = jedna sekcja/rozdział (ok. 500-700 słów). Utrzymaj tempo narracyjne tak, aby po wszystkich odpowiedziach powstała spójna, zamknięta i epicka książka.
-- Styl literacki: Używaj bogatego, gęstego języka. Stosuj technikę "show, don't tell" (pokazuj emocje poprzez fizyczne reakcje i otoczenie). Unikaj tanich klisz. Skup się na detalu technicznym i atmosferze grozy/zachwytu (Interstellar style).
-- Logika i Pamięć: Rygorystycznie pilnuj ciągłości czasu, lokalizacji i rozwoju postaci. Każda kolejna sekcja musi wynikać logicznie z poprzedniej.
-- Twist: Buduj napięcie w sposób narastający. Ukrywaj wskazówki do finałowego twistu w bardzo subtelny sposób na wczesnych stronach.
-- Format wyjściowy: Tylko czysty tekst literacki. Brak nagłówków "Rozdział X" na początku, chyba że kończysz rozdział i zaczynasz nowy na tej samej stronie."""
+[Protokół wyjściowy]
+- Pierwszy znak odpowiedzi = pierwszy znak treści narracji lub eksplikacji (zero wstępów).
+- Zakaz: „Mam nadzieję”, „w tym rozdziale”, „poniżej znajdziesz”, placeholdery, listy zadań dla użytkownika.
+
+[Parametry stylistyczne]
+- Priorytet: precyzja, konkret, sensoryka i „show, don't tell”; unikaj pustych fraz i tanich klisz.
+- Spójność: utrzymuj ciągłość czasu, miejsca, tonu i motywów; każdy blok logicznie kontynuuje poprzedni.
+- Gęstość: jedna odpowiedź ≈ jedna jednostka redakcyjna (docelowo 500–700 słów), zachowując tempo i napięcie tam, gdzie temat tego wymaga.
+
+[Format]
+- Zwracaj wyłącznie czysty tekst (bez Markdown nagłówków), chyba że brief projektu wymaga jawnych tytułów rozdziałów na granicach sekcji."""
 
 
 class User(Base):
@@ -42,6 +46,8 @@ class UserSettings(Base):
     google_model: Mapped[str] = mapped_column(String(200), default="")
     openrouter_api_key: Mapped[str] = mapped_column(String(500), default="")
     openrouter_model: Mapped[str] = mapped_column(String(200), default="")
+    # auto | lm_studio | google_gemini | openrouter — który LLM generuje treść w tej sesji
+    preferred_llm_provider: Mapped[str] = mapped_column(String(30), default="auto")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="settings")
@@ -70,6 +76,20 @@ class BookProject(Base):
     publish_checklist: Mapped[str] = mapped_column(Text, default="")
     idea_research: Mapped[str] = mapped_column(Text, default="")
     llm_provider_used: Mapped[str] = mapped_column(String(100), default="")
+
+    # Book positioning fields (set at project creation)
+    writing_style: Mapped[str] = mapped_column(Text, default="")
+    target_market: Mapped[str] = mapped_column(String(50), default="en-US")
+    author_bio: Mapped[str] = mapped_column(Text, default="")
+    emotions_to_convey: Mapped[str] = mapped_column(Text, default="")
+    knowledge_to_share: Mapped[str] = mapped_column(Text, default="")
+    target_audience: Mapped[str] = mapped_column(Text, default="")
+
+    # Generated pipeline outputs (new steps)
+    amazon_keywords: Mapped[str] = mapped_column(Text, default="")
+    catalog_tree: Mapped[str] = mapped_column(Text, default="")
+    translations: Mapped[str] = mapped_column(Text, default="")
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

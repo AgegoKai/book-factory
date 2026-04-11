@@ -6,7 +6,7 @@
   <div>
     <div class="eyebrow">Konto</div>
     <h1>Ustawienia API</h1>
-    <p class="subtitle">Zmień klucze API i konfigurację providerów bez edytowania pliku .env. Ustawienia są zapisane per użytkownik w bazie.</p>
+    <p class="subtitle">Zmień klucze API i konfigurację providerów. Ustawienia zapisane per użytkownik — nadpisują .env.</p>
   </div>
 </div>
 
@@ -17,11 +17,52 @@
 </div>
 {% endif %}
 
+{% set pref = (s.preferred_llm_provider if s and s.preferred_llm_provider else 'auto') %}
+
 <div class="alert alert-info" style="margin-bottom:24px;">
-  <strong>Kolejność prób:</strong> LM Studio (lokalny) → Google Gemini → OpenRouter → Template fallback. Pozostaw pole puste aby użyć wartości z pliku .env.
+  <strong>Aktywny routing:</strong> {{ llm_routing_label }}.
+  Wybierz poniżej, który provider ma generować treść — gdy LM Studio jest wyłączony, wybierz <em>OpenRouter</em> lub <em>Gemini</em>, żeby uniknąć błędów połączenia na starcie.
+  Pozostaw pola kluczy puste, aby użyć wartości z <code>.env</code>.
 </div>
 
 <form method="post" action="/settings" class="stack" id="settingsForm">
+
+  <!-- Preferowany provider (sesja) -->
+  <div class="settings-section" style="border-color: color-mix(in srgb, var(--accent) 35%, var(--border));">
+    <div class="settings-section-header">
+      <div class="settings-section-icon lm" style="background: color-mix(in srgb, var(--accent) 20%, transparent);">
+        <i data-lucide="shuffle" style="width:18px;height:18px;color:var(--accent-light);"></i>
+      </div>
+      <div>
+        <div class="settings-section-title">Provider do generowania</div>
+        <div class="settings-section-sub">Dotyczy pipeline książki, researchu i tłumaczeń. „Automatycznie” = kolejka jak wcześniej.</div>
+      </div>
+    </div>
+    <div class="settings-section-body">
+      <div class="provider-pref-grid">
+        <label class="provider-pref-card {% if pref == 'auto' %}selected{% endif %}">
+          <input type="radio" name="preferred_llm_provider" value="auto" {% if pref == 'auto' %}checked{% endif %}>
+          <span class="provider-pref-title">Automatycznie</span>
+          <span class="provider-pref-desc">LM Studio → Gemini → OpenRouter</span>
+        </label>
+        <label class="provider-pref-card {% if pref == 'lm_studio' %}selected{% endif %}">
+          <input type="radio" name="preferred_llm_provider" value="lm_studio" {% if pref == 'lm_studio' %}checked{% endif %}>
+          <span class="provider-pref-title">Tylko LM Studio</span>
+          <span class="provider-pref-desc">Lokalny serwer musi działać</span>
+        </label>
+        <label class="provider-pref-card {% if pref == 'google_gemini' %}selected{% endif %}">
+          <input type="radio" name="preferred_llm_provider" value="google_gemini" {% if pref == 'google_gemini' %}checked{% endif %}>
+          <span class="provider-pref-title">Tylko Gemini</span>
+          <span class="provider-pref-desc">Google AI API</span>
+        </label>
+        <label class="provider-pref-card {% if pref == 'openrouter' %}selected{% endif %}">
+          <input type="radio" name="preferred_llm_provider" value="openrouter" {% if pref == 'openrouter' %}checked{% endif %}>
+          <span class="provider-pref-title">Tylko OpenRouter</span>
+          <span class="provider-pref-desc">Bez prób LM / Gemini</span>
+        </label>
+      </div>
+    </div>
+  </div>
 
   <!-- LM Studio -->
   <div class="settings-section">
@@ -33,7 +74,7 @@
         <div class="settings-section-title">LM Studio</div>
         <div class="settings-section-sub">Lokalne modele — najtańsza opcja, działa offline. Twój Gemma 3 27B.</div>
       </div>
-      <span class="badge badge-{{ 'ok' if s and s.lm_studio_base_url or s and s.lm_studio_api_key else 'missing' }}" style="margin-left:auto;">
+      <span class="badge badge-{{ 'ok' if s and s.lm_studio_base_url or s and s.lm_studio_api_key else 'missing' }}" style="margin-left:auto;" id="badge-lm">
         {{ 'Skonfigurowane' if s and (s.lm_studio_base_url or s.lm_studio_api_key) else 'Domyślne z .env' }}
       </span>
     </div>
@@ -41,14 +82,14 @@
       <div class="grid-2col">
         <label>
           Base URL
-          <input type="text" name="lm_studio_base_url"
+          <input type="text" name="lm_studio_base_url" id="lm_base_url"
             value="{{ s.lm_studio_base_url if s else '' }}"
             placeholder="http://127.0.0.1:1234/v1">
           <span class="hint">Domyślnie: http://127.0.0.1:1234/v1</span>
         </label>
         <label>
           Model
-          <input type="text" name="lm_studio_model"
+          <input type="text" name="lm_studio_model" id="lm_model"
             value="{{ s.lm_studio_model if s else '' }}"
             placeholder="gemma-3-27b-it">
           <span class="hint">Identyfikator modelu załadowanego w LM Studio</span>
@@ -56,11 +97,17 @@
       </div>
       <label>
         API Key <span style="color:var(--text-muted);font-weight:400;">(wymagany jeśli LM Studio wymaga autoryzacji)</span>
-        <input type="password" name="lm_studio_api_key"
+        <input type="password" name="lm_studio_api_key" id="lm_api_key"
           value="{{ s.lm_studio_api_key if s else '' }}"
           placeholder="sk-lm-... lub zostaw puste">
-        <span class="hint">Klucz do API LM Studio — potrzebny gdy serwer wymaga Bearer token</span>
+        <span class="hint">Klucz Bearer token — potrzebny gdy serwer wymaga autoryzacji</span>
       </label>
+      <div class="provider-test-row">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="testProvider('lm_studio')">
+          <i data-lucide="radio" style="width:13px;height:13px;"></i> Testuj LM Studio
+        </button>
+        <span class="provider-test-result" id="result-lm_studio"></span>
+      </div>
     </div>
   </div>
 
@@ -74,7 +121,7 @@
         <div class="settings-section-title">Google Gemini</div>
         <div class="settings-section-sub">Oficjalne Google AI API. Dobry fallback z darmowym tierem.</div>
       </div>
-      <span class="badge badge-{{ 'ok' if s and s.google_api_key else 'missing' }}" style="margin-left:auto;">
+      <span class="badge badge-{{ 'ok' if s and s.google_api_key else 'missing' }}" style="margin-left:auto;" id="badge-google">
         {{ 'Skonfigurowane' if s and s.google_api_key else 'Brak klucza' }}
       </span>
     </div>
@@ -82,18 +129,24 @@
       <div class="grid-2col">
         <label>
           Google API Key
-          <input type="password" name="google_api_key"
+          <input type="password" name="google_api_key" id="google_api_key"
             value="{{ s.google_api_key if s else '' }}"
             placeholder="AIza...">
           <span class="hint"><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent-light);">Pobierz z AI Studio →</a></span>
         </label>
         <label>
           Model
-          <input type="text" name="google_model"
+          <input type="text" name="google_model" id="google_model"
             value="{{ s.google_model if s else '' }}"
             placeholder="gemini-2.5-flash">
           <span class="hint">Domyślnie: gemini-2.5-flash</span>
         </label>
+      </div>
+      <div class="provider-test-row">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="testProvider('google')">
+          <i data-lucide="radio" style="width:13px;height:13px;"></i> Testuj Gemini
+        </button>
+        <span class="provider-test-result" id="result-google"></span>
       </div>
     </div>
   </div>
@@ -106,28 +159,127 @@
       </div>
       <div>
         <div class="settings-section-title">OpenRouter</div>
-        <div class="settings-section-sub">Router darmowych modeli. Ostatni fallback gdy lokalne i Gemini niedostępne.</div>
+        <div class="settings-section-sub">Router darmowych i płatnych modeli. Fallback gdy lokalne i Gemini niedostępne.</div>
       </div>
-      <span class="badge badge-{{ 'ok' if s and s.openrouter_api_key else 'missing' }}" style="margin-left:auto;">
+      <span class="badge badge-{{ 'ok' if s and s.openrouter_api_key else 'missing' }}" style="margin-left:auto;" id="badge-or">
         {{ 'Skonfigurowane' if s and s.openrouter_api_key else 'Brak klucza' }}
       </span>
     </div>
     <div class="settings-section-body">
-      <div class="grid-2col">
+      <div class="grid-2col" style="margin-bottom:20px;">
         <label>
           OpenRouter API Key
-          <input type="password" name="openrouter_api_key"
+          <input type="password" name="openrouter_api_key" id="openrouter_api_key"
             value="{{ s.openrouter_api_key if s else '' }}"
             placeholder="sk-or-...">
           <span class="hint"><a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent-light);">Pobierz z OpenRouter →</a></span>
         </label>
         <label>
-          Model
-          <input type="text" name="openrouter_model"
+          Model (ID modelu)
+          <input type="text" name="openrouter_model" id="openrouterModelInput"
             value="{{ s.openrouter_model if s else '' }}"
             placeholder="openrouter/auto">
-          <span class="hint">Użyj <code>:free</code> suffix dla darmowych modeli, np. <code>mistralai/mistral-7b-instruct:free</code></span>
+          <span class="hint">Użyj <code>:free</code> dla darmowych, <code>:online</code> dla web search</span>
         </label>
+      </div>
+      <div class="provider-test-row" style="margin-bottom:16px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="testProvider('openrouter')">
+          <i data-lucide="radio" style="width:13px;height:13px;"></i> Testuj OpenRouter
+        </button>
+        <span class="provider-test-result" id="result-openrouter"></span>
+      </div>
+
+      <!-- Model picker -->
+      <div style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+        <i data-lucide="list" style="width:13px;height:13px;"></i>
+        Wybierz model — od najtańszego do najdroższego (koszt napisania 1 książki ~90k tokenów)
+      </div>
+      <div class="model-picker-grid" id="modelPickerGrid">
+
+        <div class="model-picker-card" data-model="google/gemma-3-27b-it:free" onclick="pickModel(this)">
+          <div class="model-picker-top">
+            <span class="model-badge free">DARMOWY</span>
+            <span class="model-web-badge" style="opacity:0.35;">bez web</span>
+          </div>
+          <div class="model-picker-name">Gemma 3 27B</div>
+          <div class="model-picker-id">google/gemma-3-27b-it:free</div>
+          <div class="model-picker-note">Sprawdzony przez klienta. Dobra jakość tekstu.</div>
+        </div>
+
+        <div class="model-picker-card" data-model="meta-llama/llama-3.3-70b-instruct:free" onclick="pickModel(this)">
+          <div class="model-picker-top">
+            <span class="model-badge free">DARMOWY</span>
+            <span class="model-web-badge" style="opacity:0.35;">bez web</span>
+          </div>
+          <div class="model-picker-name">Llama 3.3 70B</div>
+          <div class="model-picker-id">meta-llama/llama-3.3-70b-instruct:free</div>
+          <div class="model-picker-note">Meta's flagship open-source model.</div>
+        </div>
+
+        <div class="model-picker-card" data-model="microsoft/phi-4:free" onclick="pickModel(this)">
+          <div class="model-picker-top">
+            <span class="model-badge free">DARMOWY</span>
+            <span class="model-web-badge" style="opacity:0.35;">bez web</span>
+          </div>
+          <div class="model-picker-name">Microsoft Phi-4</div>
+          <div class="model-picker-id">microsoft/phi-4:free</div>
+          <div class="model-picker-note">Kompaktowy model od Microsoft.</div>
+        </div>
+
+        <div class="model-picker-card" data-model="google/gemini-2.0-flash-001:online" onclick="pickModel(this)">
+          <div class="model-picker-top">
+            <span class="model-badge paid">~$0.05</span>
+            <span class="model-web-badge web-on"><i data-lucide="wifi" style="width:10px;height:10px;"></i> web</span>
+          </div>
+          <div class="model-picker-name">Gemini 2.0 Flash</div>
+          <div class="model-picker-id">google/gemini-2.0-flash-001:online</div>
+          <div class="model-picker-note">Szybki, z wyszukiwarką internetową.</div>
+        </div>
+
+        <div class="model-picker-card" data-model="google/gemini-2.5-flash:online" onclick="pickModel(this)">
+          <div class="model-picker-top">
+            <span class="model-badge paid">~$0.15</span>
+            <span class="model-web-badge web-on"><i data-lucide="wifi" style="width:10px;height:10px;"></i> web</span>
+          </div>
+          <div class="model-picker-name">Gemini 2.5 Flash</div>
+          <div class="model-picker-id">google/gemini-2.5-flash:online</div>
+          <div class="model-picker-note">Nowszy Flash z dłuższym kontekstem i web.</div>
+        </div>
+
+        <div class="model-picker-card" data-model="openai/gpt-4o-mini:online" onclick="pickModel(this)">
+          <div class="model-picker-top">
+            <span class="model-badge paid">~$0.35</span>
+            <span class="model-web-badge web-on"><i data-lucide="wifi" style="width:10px;height:10px;"></i> web</span>
+          </div>
+          <div class="model-picker-name">GPT-4o Mini</div>
+          <div class="model-picker-id">openai/gpt-4o-mini:online</div>
+          <div class="model-picker-note">Ekonomiczny GPT-4o z przeszukiwarką.</div>
+        </div>
+
+        <div class="model-picker-card" data-model="openai/gpt-4o:online" onclick="pickModel(this)">
+          <div class="model-picker-top">
+            <span class="model-badge expensive">~$2.80</span>
+            <span class="model-web-badge web-on"><i data-lucide="wifi" style="width:10px;height:10px;"></i> web</span>
+          </div>
+          <div class="model-picker-name">GPT-4o</div>
+          <div class="model-picker-id">openai/gpt-4o:online</div>
+          <div class="model-picker-note">Pełny GPT-4o z wyszukiwarką. Wysoka jakość.</div>
+        </div>
+
+        <div class="model-picker-card" data-model="anthropic/claude-sonnet-4-5:online" onclick="pickModel(this)">
+          <div class="model-picker-top">
+            <span class="model-badge expensive">~$4.50</span>
+            <span class="model-web-badge web-on"><i data-lucide="wifi" style="width:10px;height:10px;"></i> web</span>
+          </div>
+          <div class="model-picker-name">Claude Sonnet 4.5</div>
+          <div class="model-picker-id">anthropic/claude-sonnet-4-5:online</div>
+          <div class="model-picker-note">Anthropic's premium model. Najlepsza jakość prozy.</div>
+        </div>
+
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-top:8px;">
+        Suffix <code>:online</code> włącza wyszukiwanie internetu przez OpenRouter.
+        Kliknij kartę aby wybrać model, następnie kliknij <strong>Testuj OpenRouter</strong> przed zapisaniem.
       </div>
     </div>
   </div>
@@ -137,36 +289,225 @@
       <i data-lucide="save"></i> Zapisz ustawienia
     </button>
     <button type="button" id="testConnectionBtn" class="btn-secondary btn">
-      <i data-lucide="radio"></i> Testuj połączenie
+      <i data-lucide="radio"></i> Testuj wszystkie
     </button>
     <div id="testResult" style="font-size:0.82rem;color:var(--text-muted);"></div>
   </div>
 </form>
 
-<!-- Environment info -->
+<!-- How it works -->
 <div class="card" style="margin-top:24px;">
   <div style="font-size:0.85rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
     <i data-lucide="info" style="width:15px;height:15px;color:var(--accent-light);"></i>
     Jak działają ustawienia
   </div>
   <div style="font-size:0.8rem;color:var(--text-secondary);display:flex;flex-direction:column;gap:8px;">
+    <div>• <strong>Provider do generowania</strong> — wybór „tylko X” oznacza, że aplikacja nie próbuje innych API (np. wyłączonego LM Studio).</div>
     <div>• Wartości wpisane tutaj <strong>nadpisują</strong> wartości z pliku <code>.env</code> dla Twojego konta.</div>
     <div>• Jeśli pole jest puste, aplikacja używa wartości z <code>.env</code>.</div>
     <div>• Klucze API są przechowywane w lokalnej bazie SQLite — nie są wysyłane nigdzie indziej.</div>
-    <div>• Zmiana ustawień działa natychmiast — nie trzeba restartować serwera.</div>
+    <div>• <strong>Testuj provider</strong> — wysyła żądanie testowe bezpośrednio z aktualnie wpisanych wartości (bez zapisywania).</div>
+    <div>• Jeśli test pokazuje błąd: sprawdź saldo konta, poprawność klucza i czy model istnieje.</div>
   </div>
 </div>
 
-<script>
-  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
-    // form will submit naturally
-  });
-  document.getElementById('settingsForm').addEventListener('submit', () => {
-    const btn = document.getElementById('saveSettingsBtn');
-    btn.innerHTML = '<span class="spinner"></span> Zapisuję...';
-    btn.disabled = true;
-  });
+<style>
+.provider-test-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.provider-test-result {
+  font-size: 0.8rem;
+  max-width: 520px;
+}
+.provider-test-result.ok { color: var(--emerald); }
+.provider-test-result.err { color: var(--rose); }
 
+.model-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.model-picker-card {
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg-card);
+}
+.model-picker-card:hover {
+  border-color: var(--accent-light);
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-card));
+}
+.model-picker-card.selected {
+  border-color: var(--accent-light);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-light) 30%, transparent);
+}
+.model-picker-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.model-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+.model-badge.free { background: color-mix(in srgb, var(--emerald) 15%, transparent); color: var(--emerald); }
+.model-badge.paid { background: color-mix(in srgb, var(--accent-light) 15%, transparent); color: var(--accent-light); }
+.model-badge.expensive { background: color-mix(in srgb, var(--amber) 15%, transparent); color: var(--amber); }
+.model-web-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+.model-web-badge.web-on { background: color-mix(in srgb, #38bdf8 15%, transparent); color: #38bdf8; }
+.model-picker-name { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
+.model-picker-id { font-size: 0.68rem; color: var(--text-muted); font-family: monospace; margin-bottom: 6px; word-break: break-all; }
+.model-picker-note { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4; }
+
+.provider-pref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.provider-pref-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--bg-card);
+  transition: border-color 0.15s, background 0.15s;
+}
+.provider-pref-card:hover { border-color: var(--accent-light); }
+.provider-pref-card.selected, .provider-pref-card:has(input:checked) {
+  border-color: var(--accent-light);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+}
+.provider-pref-card input { position: absolute; opacity: 0; pointer-events: none; }
+.provider-pref-title { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
+.provider-pref-desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.35; }
+</style>
+<script>
+  // ── Model picker ──────────────────────────────────────────────────────────────
+  function pickModel(card) {
+    document.querySelectorAll('.model-picker-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    document.getElementById('openrouterModelInput').value = card.dataset.model;
+  }
+
+  (function highlightCurrent() {
+    const current = (document.getElementById('openrouterModelInput').value || '').trim();
+    if (!current) return;
+    document.querySelectorAll('.model-picker-card').forEach(card => {
+      if (card.dataset.model === current) card.classList.add('selected');
+    });
+  })();
+
+  // ── Per-provider test ─────────────────────────────────────────────────────────
+  async function testProvider(provider) {
+    const resultEl = document.getElementById('result-' + provider);
+    const btn = document.querySelector(`[onclick="testProvider('${provider}')"]`);
+    const origHtml = btn.innerHTML;
+
+    resultEl.textContent = '';
+    resultEl.className = 'provider-test-result';
+    btn.innerHTML = '<span class="spinner"></span> Testowanie...';
+    btn.disabled = true;
+
+    // Read current (unsaved) field values
+    const fields = {
+      lm_studio: {
+        api_key: document.getElementById('lm_api_key')?.value || '',
+        model:   document.getElementById('lm_model')?.value || '',
+        base_url: document.getElementById('lm_base_url')?.value || '',
+      },
+      google: {
+        api_key: document.getElementById('google_api_key')?.value || '',
+        model:   document.getElementById('google_model')?.value || '',
+      },
+      openrouter: {
+        api_key: document.getElementById('openrouter_api_key')?.value || '',
+        model:   document.getElementById('openrouterModelInput')?.value || '',
+      },
+    };
+
+    const f = fields[provider] || {};
+    const body = new URLSearchParams({
+      provider,
+      api_key:  f.api_key  || '',
+      model:    f.model    || '',
+      base_url: f.base_url || '',
+    });
+
+    try {
+      const res = await fetch('/settings/test_provider', { method: 'POST', body });
+      const data = await res.json();
+      if (data.ok) {
+        resultEl.innerHTML = `<strong>✓ OK</strong> — ${data.provider} odpowiedział: <em>"${escHtml(data.response)}"</em>`;
+        resultEl.className = 'provider-test-result ok';
+        showToast(`${provider} działa poprawnie!`, 'success');
+      } else {
+        resultEl.innerHTML = _buildErrorHtml(provider, data.error);
+        resultEl.className = 'provider-test-result err';
+        showToast('Test nie powiódł się — patrz szczegóły', 'error');
+      }
+    } catch (e) {
+      resultEl.textContent = '✕ Błąd sieciowy: ' + e.message;
+      resultEl.className = 'provider-test-result err';
+    }
+
+    btn.innerHTML = origHtml;
+    btn.disabled = false;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  function _buildErrorHtml(provider, errMsg) {
+    const msg = errMsg || 'Nieznany błąd';
+    let hint = '';
+    const m = msg.toLowerCase();
+    if (m.includes('api_key missing') || m.includes('missing')) {
+      hint = 'Brak klucza API — wpisz go w polu powyżej.';
+    } else if (m.includes('401') || m.includes('unauthorized') || m.includes('invalid_api_key')) {
+      hint = 'Klucz API nieprawidłowy — sprawdź czy skopiowałeś go poprawnie.';
+    } else if (m.includes('402') || m.includes('insufficient') || m.includes('credit') || m.includes('saldo')) {
+      hint = 'Brak kredytów na koncie — doładuj saldo na openrouter.ai/credits.';
+    } else if (m.includes('429') || m.includes('rate')) {
+      hint = 'Przekroczono limit zapytań — poczekaj chwilę i spróbuj ponownie.';
+    } else if (m.includes('404') || m.includes('model not found') || m.includes('no such model')) {
+      hint = 'Model nie istnieje — sprawdź ID modelu w pikerze powyżej.';
+    } else if (m.includes('connection') || m.includes('timeout') || m.includes('refused')) {
+      hint = provider === 'lm_studio'
+        ? 'Nie można połączyć się z LM Studio — sprawdź czy serwer jest uruchomiony i Base URL jest poprawny.'
+        : 'Błąd połączenia — sprawdź połączenie internetowe.';
+    } else if (m.includes('empty') || m.includes('content')) {
+      hint = 'Model odpowiedział pustą treścią — spróbuj innego modelu lub sprawdź limit tokenów.';
+    }
+    return `<strong>✕ Błąd:</strong> ${escHtml(msg)}${hint ? `<br><span style="color:var(--amber);">💡 ${escHtml(hint)}</span>` : ''}`;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Global test (all providers) ───────────────────────────────────────────────
   document.getElementById('testConnectionBtn').addEventListener('click', async () => {
     const btn = document.getElementById('testConnectionBtn');
     const result = document.getElementById('testResult');
@@ -177,18 +518,25 @@
       const res = await fetch('/settings/test', { method: 'POST' });
       const data = await res.json();
       if (data.ok) {
-        result.innerHTML = `<span style="color:var(--emerald);">✓ ${data.provider} odpowiedział: "${data.response}"</span>`;
+        result.innerHTML = `<span style="color:var(--emerald);">✓ ${escHtml(data.provider)} odpowiedział: "${escHtml(data.response)}"</span>`;
         showToast('Połączenie działa poprawnie!', 'success');
       } else {
-        result.innerHTML = `<span style="color:var(--rose);">✕ ${data.error}</span>`;
+        result.innerHTML = `<span style="color:var(--rose);">✕ ${escHtml(data.error)}</span>`;
         showToast('Brak połączenia z LLM — sprawdź klucze', 'error');
       }
     } catch(e) {
       result.innerHTML = `<span style="color:var(--rose);">Błąd sieciowy: ${e.message}</span>`;
     }
-    btn.innerHTML = '<i data-lucide="radio"></i> Testuj ponownie';
+    btn.innerHTML = '<i data-lucide="radio"></i> Testuj wszystkie';
     btn.disabled = false;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+  });
+
+  // ── Form submit spinner ───────────────────────────────────────────────────────
+  document.getElementById('settingsForm').addEventListener('submit', () => {
+    const btn = document.getElementById('saveSettingsBtn');
+    btn.innerHTML = '<span class="spinner"></span> Zapisuję...';
+    btn.disabled = true;
   });
 
   if (typeof lucide !== 'undefined') lucide.createIcons();

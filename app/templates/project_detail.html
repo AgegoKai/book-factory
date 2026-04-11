@@ -56,22 +56,26 @@
 
 <!-- Tabs -->
 <div class="tabs" id="mainTabs">
-  <button class="tab active" data-target="pipeline" type="button">
+  <button class="tab {% if active_tab == 'pipeline' %}active{% endif %}" data-target="pipeline" type="button">
     <i data-lucide="git-branch"></i> Pipeline
   </button>
-  <button class="tab" data-target="editor" type="button">
+  <button class="tab {% if active_tab == 'editor' %}active{% endif %}" data-target="editor" type="button">
     <i data-lucide="edit-3"></i> Edytor
   </button>
-  <button class="tab" data-target="research" type="button">
+  <button class="tab {% if active_tab == 'translations' %}active{% endif %}" data-target="translations" type="button">
+    <i data-lucide="languages"></i> Tłumaczenia
+    {% if translations %}<span class="badge badge-ok" style="margin-left:4px;font-size:0.65rem;">{{ translations | length }}</span>{% endif %}
+  </button>
+  <button class="tab {% if active_tab == 'research' %}active{% endif %}" data-target="research" type="button">
     <i data-lucide="search"></i> Research
   </button>
-  <button class="tab" data-target="providers" type="button">
+  <button class="tab {% if active_tab == 'providers' %}active{% endif %}" data-target="providers" type="button">
     <i data-lucide="cpu"></i> Providery
   </button>
 </div>
 
 <!-- =================== TAB: Pipeline =================== -->
-<div class="tab-panel active" id="tab-pipeline">
+<div class="tab-panel {% if active_tab == 'pipeline' %}active{% endif %}" id="tab-pipeline">
   <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
     
     <!-- Pipeline stepper -->
@@ -122,11 +126,11 @@
           <i data-lucide="info" style="width:16px;height:16px;color:var(--accent-light);"></i> Jak to działa
         </div>
         <ol style="display:flex;flex-direction:column;gap:10px;padding-left:18px;font-size:0.8rem;color:var(--text-secondary);">
-          <li>Uzupełnij dane projektu i kliknij <strong>Konspekt</strong>.</li>
-          <li>Każdy krok odblokuje następny gdy jest gotowy.</li>
-          <li>Możesz ręcznie edytować każdą sekcję w zakładce <strong>Edytor</strong>.</li>
+          <li>Kliknij <strong>Konspekt</strong> aby zacząć — każdy krok odblokuje następny.</li>
+          <li>Możesz edytować każdą sekcję w zakładce <strong>Edytor</strong> i regenerować.</li>
+          <li>Po SEO wygeneruj tłumaczenia w zakładce <strong>Tłumaczenia</strong> (DE, ES).</li>
           <li>Na końcu pobierz DOCX lub PDF z przycisków powyżej.</li>
-          <li>Klucze API zmieniasz w <a href="/settings" style="color:var(--accent-light);">Ustawienia</a>.</li>
+          <li>Zmień model w <a href="/settings" style="color:var(--accent-light);">Ustawienia</a> — modele z <code>:online</code> mają dostęp do internetu.</li>
         </ol>
       </div>
 
@@ -136,9 +140,19 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:0.78rem;color:var(--text-secondary);">
           <div><span style="color:var(--text-muted);">Język:</span> {{ project.language.upper() }}</div>
+          <div><span style="color:var(--text-muted);">Rynek:</span> {{ project.target_market or 'en-US' }}</div>
           <div><span style="color:var(--text-muted);">Cel:</span> {{ project.target_pages }} str / {{ project.target_words }} słów</div>
           <div><span style="color:var(--text-muted);">Draft:</span> {{ metrics.draft_words }} słów</div>
           <div><span style="color:var(--text-muted);">Outline:</span> {{ metrics.outline_words }} słów</div>
+          {% if project.writing_style %}
+          <div><span style="color:var(--text-muted);">Styl:</span> {{ project.writing_style | truncate(50) }}</div>
+          {% endif %}
+          {% if project.target_audience %}
+          <div><span style="color:var(--text-muted);">Odbiorca:</span> {{ project.target_audience | truncate(60) }}</div>
+          {% endif %}
+          {% if project.author_bio %}
+          <div><span style="color:var(--text-muted);">Autor:</span> {{ project.author_bio | truncate(60) }}</div>
+          {% endif %}
           {% if project.inspiration_sources %}
           <div><span style="color:var(--text-muted);">Inspiracje:</span> {{ project.inspiration_sources | truncate(80) }}</div>
           {% endif %}
@@ -149,7 +163,7 @@
 </div>
 
 <!-- =================== TAB: Editor =================== -->
-<div class="tab-panel" id="tab-editor">
+<div class="tab-panel {% if active_tab == 'editor' %}active{% endif %}" id="tab-editor">
   <form method="post" action="/projects/{{ project.id }}/save" id="editorForm">
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
@@ -198,26 +212,50 @@
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
       <div class="editor-section">
-        <div class="editor-header"><span class="editor-title">5. Opis SEO Amazon</span></div>
+        <div class="editor-header">
+          <span class="editor-title">5. Opis SEO Amazon</span>
+          <span class="editor-meta" id="seoCharCount" style="color:var(--text-muted);">0 / 2500 zn.</span>
+        </div>
         <div class="textarea-wrap">
-          <textarea name="seo_description" rows="12" data-wordcount>{{ project.seo_description }}</textarea>
+          <textarea name="seo_description" rows="14" data-wordcount id="seoTextarea">{{ project.seo_description }}</textarea>
           <span class="word-counter">0 słów</span>
         </div>
       </div>
       <div class="editor-section">
-        <div class="editor-header"><span class="editor-title">6. Brief okładki</span></div>
+        <div class="editor-header">
+          <span class="editor-title">6. 7 Keywords Amazon</span>
+        </div>
         <div class="textarea-wrap">
-          <textarea name="cover_brief" rows="12" data-wordcount>{{ project.cover_brief }}</textarea>
+          <textarea name="amazon_keywords" rows="14" data-wordcount>{{ project.amazon_keywords }}</textarea>
           <span class="word-counter">0 słów</span>
         </div>
       </div>
     </div>
 
     <div class="editor-section" style="margin-bottom:16px;">
-      <div class="editor-header"><span class="editor-title">7. Checklista publikacji Amazon KDP</span></div>
+      <div class="editor-header">
+        <span class="editor-title">7. Drzewo katalogu Amazon + 3 idealne ścieżki</span>
+      </div>
       <div class="textarea-wrap">
-        <textarea name="publish_checklist" rows="14" data-wordcount>{{ project.publish_checklist }}</textarea>
+        <textarea name="catalog_tree" rows="14" data-wordcount>{{ project.catalog_tree }}</textarea>
         <span class="word-counter">0 słów</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div class="editor-section">
+        <div class="editor-header"><span class="editor-title">8. Brief okładki</span></div>
+        <div class="textarea-wrap">
+          <textarea name="cover_brief" rows="12" data-wordcount>{{ project.cover_brief }}</textarea>
+          <span class="word-counter">0 słów</span>
+        </div>
+      </div>
+      <div class="editor-section">
+        <div class="editor-header"><span class="editor-title">9. Checklista publikacji Amazon KDP</span></div>
+        <div class="textarea-wrap">
+          <textarea name="publish_checklist" rows="12" data-wordcount>{{ project.publish_checklist }}</textarea>
+          <span class="word-counter">0 słów</span>
+        </div>
       </div>
     </div>
 
@@ -242,8 +280,138 @@
   </form>
 </div>
 
+<!-- =================== TAB: Translations =================== -->
+<div class="tab-panel {% if active_tab == 'translations' %}active{% endif %}" id="tab-translations">
+  <div style="margin-bottom:20px;">
+    <div style="font-size:1rem;font-weight:700;margin-bottom:4px;">Lokalizacje — tłumaczenia pakietu Amazon</div>
+    <p style="font-size:0.8rem;color:var(--text-muted);">Generuje kompletny pakiet dla danego rynku: opis SEO (2500 zn.), 7 keywords i drzewo katalogu — w lokalnym języku i stylu kulturowym.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+
+    <!-- DE -->
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <span style="font-size:1.4rem;">🇩🇪</span>
+        <div>
+          <div style="font-weight:700;font-size:0.9rem;">Amazon DE — Deutsch</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">Niemiecki SEO, keywords i katalog są inne niż angielski</div>
+        </div>
+        {% if translations.de %}
+        <span class="badge badge-ok" style="margin-left:auto;">Wygenerowane</span>
+        {% endif %}
+      </div>
+      <form method="post" action="/projects/{{ project.id }}/translate" id="translateDeForm">
+        <input type="hidden" name="target_lang" value="de">
+        <button type="submit" id="translateDeBtn" class="btn btn-secondary" style="width:100%;">
+          {% if translations.de %}
+          <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Regeneruj pakiet DE
+          {% else %}
+          <i data-lucide="languages" style="width:14px;height:14px;"></i> Generuj pakiet DE
+          {% endif %}
+        </button>
+      </form>
+
+      {% if translations.de %}
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">SEO Beschreibung</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">{{ translations.de.seo | length }} / 2500 znaków</div>
+          <div class="textarea-wrap">
+            <textarea rows="8" readonly style="font-size:0.75rem;opacity:0.85;">{{ translations.de.seo }}</textarea>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Keywords DE</div>
+          <div class="textarea-wrap">
+            <textarea rows="5" readonly style="font-size:0.75rem;opacity:0.85;">{{ translations.de.keywords }}</textarea>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Katalog DE + 3 Ścieżki</div>
+          <div class="textarea-wrap">
+            <textarea rows="8" readonly style="font-size:0.75rem;opacity:0.85;">{{ translations.de.catalog }}</textarea>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <p style="font-size:0.78rem;color:var(--text-muted);font-style:italic;margin-top:12px;">
+        Kliknij przycisk aby wygenerować pakiet dla rynku niemieckiego. Wymaga ukończenia kroku SEO.
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- ES -->
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <span style="font-size:1.4rem;">🇪🇸</span>
+        <div>
+          <div style="font-weight:700;font-size:0.9rem;">Amazon ES — Español</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">Hiszpański SEO, keywords i katalog dla rynku ES</div>
+        </div>
+        {% if translations.es %}
+        <span class="badge badge-ok" style="margin-left:auto;">Wygenerowane</span>
+        {% endif %}
+      </div>
+      <form method="post" action="/projects/{{ project.id }}/translate" id="translateEsForm">
+        <input type="hidden" name="target_lang" value="es">
+        <button type="submit" id="translateEsBtn" class="btn btn-secondary" style="width:100%;">
+          {% if translations.es %}
+          <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> Regeneruj pakiet ES
+          {% else %}
+          <i data-lucide="languages" style="width:14px;height:14px;"></i> Generuj pakiet ES
+          {% endif %}
+        </button>
+      </form>
+
+      {% if translations.es %}
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Descripción SEO</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">{{ translations.es.seo | length }} / 2500 znaków</div>
+          <div class="textarea-wrap">
+            <textarea rows="8" readonly style="font-size:0.75rem;opacity:0.85;">{{ translations.es.seo }}</textarea>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Keywords ES</div>
+          <div class="textarea-wrap">
+            <textarea rows="5" readonly style="font-size:0.75rem;opacity:0.85;">{{ translations.es.keywords }}</textarea>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Catálogo ES + 3 Rutas</div>
+          <div class="textarea-wrap">
+            <textarea rows="8" readonly style="font-size:0.75rem;opacity:0.85;">{{ translations.es.catalog }}</textarea>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <p style="font-size:0.78rem;color:var(--text-muted);font-style:italic;margin-top:12px;">
+        Kliknij przycisk aby wygenerować pakiet dla rynku hiszpańskiego. Wymaga ukończenia kroku SEO.
+      </p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Tutorial card -->
+  <div class="card" style="max-width:680px;">
+    <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+      <i data-lucide="info" style="width:16px;height:16px;color:var(--accent-light);"></i>
+      Jak działają tłumaczenia?
+    </div>
+    <ol style="display:flex;flex-direction:column;gap:8px;padding-left:18px;font-size:0.8rem;color:var(--text-secondary);">
+      <li>Najpierw ukończ krok <strong>SEO</strong> w pipeline (krok 5) — tłumaczenia korzystają z opisu SEO jako bazy.</li>
+      <li>Kliknij <strong>Generuj pakiet DE/ES</strong> — AI tworzy SEO, keywords i katalog <em>kulturowo</em> dostosowane do rynku, nie tylko tłumaczone 1:1.</li>
+      <li>Niemcy oczekują konkretnych danych i korzyści. Hiszpański Amazon ma inną strukturę kategorii niż US.</li>
+      <li>Możesz regenerować pakiet dowolną ilość razy. Wyniki możesz skopiować i wkleić do KDP bezpośrednio.</li>
+    </ol>
+  </div>
+</div>
+
 <!-- =================== TAB: Research =================== -->
-<div class="tab-panel" id="tab-research">
+<div class="tab-panel {% if active_tab == 'research' %}active{% endif %}" id="tab-research">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
     <div class="card">
       <div style="font-size:0.95rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
@@ -282,11 +450,11 @@
 </div>
 
 <!-- =================== TAB: Providers =================== -->
-<div class="tab-panel" id="tab-providers">
+<div class="tab-panel {% if active_tab == 'providers' %}active{% endif %}" id="tab-providers">
   <div style="margin-bottom:20px;" class="flex-between">
     <div>
       <div style="font-size:1rem;font-weight:700;">Status providerów LLM</div>
-      <p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Kolejność prób: LM Studio → Google Gemini → OpenRouter → Template fallback</p>
+      <p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">{{ llm_routing_label }} — zmień w <a href="/settings" style="color:var(--accent-light);">Ustawieniach</a>.</p>
     </div>
     <a href="/settings" class="btn-secondary btn btn-sm">
       <i data-lucide="settings"></i> Zarządzaj kluczami
@@ -326,7 +494,7 @@
 </div>
 
 <script>
-  // Tabs
+  // ── Tabs ─────────────────────────────────────────────────────────────────────
   const tabs = document.querySelectorAll('.tab');
   const panels = document.querySelectorAll('.tab-panel');
   tabs.forEach(tab => {
@@ -338,25 +506,122 @@
     });
   });
 
-  // Open research tab if anchor
   if (window.location.hash === '#research') {
     document.querySelector('[data-target="research"]').click();
   }
 
-  // Pipeline buttons loading state
+  // ── Progress bar ──────────────────────────────────────────────────────────────
+  const _PROJECT_ID = {{ project.id }};
+  let _progressTimer = null;
+  let _pollActive = false;
+
+  function showProgressBar(msg, chapter, total) {
+    let bar = document.getElementById('genProgressBar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'genProgressBar';
+      bar.className = 'gen-progress-bar';
+      bar.innerHTML = `
+        <div class="gen-progress-inner">
+          <span class="gen-progress-icon"></span>
+          <span class="gen-progress-msg" id="genProgressMsg"></span>
+          <span class="gen-progress-frac" id="genProgressFrac"></span>
+          <div class="gen-progress-track" id="genProgressTrack"><div class="gen-progress-fill" id="genProgressFill"></div></div>
+        </div>`;
+      document.body.appendChild(bar);
+      requestAnimationFrame(() => bar.classList.add('visible'));
+    }
+    document.getElementById('genProgressMsg').textContent = msg;
+    const frac = document.getElementById('genProgressFrac');
+    const fill = document.getElementById('genProgressFill');
+    if (total > 1) {
+      frac.textContent = `${chapter}/${total}`;
+      fill.style.width = `${Math.round((chapter / total) * 100)}%`;
+      document.getElementById('genProgressTrack').style.display = 'block';
+    } else {
+      frac.textContent = '';
+      document.getElementById('genProgressTrack').style.display = 'none';
+    }
+  }
+
+  function hideProgressBar() {
+    const bar = document.getElementById('genProgressBar');
+    if (bar) {
+      bar.classList.remove('visible');
+      setTimeout(() => bar.remove(), 400);
+    }
+  }
+
+  function startPolling() {
+    if (_pollActive) return;
+    _pollActive = true;
+    async function poll() {
+      if (!_pollActive) return;
+      try {
+        const r = await fetch(`/projects/${_PROJECT_ID}/progress`);
+        if (r.ok) {
+          const d = await r.json();
+          if (d.active) {
+            showProgressBar(d.msg || '…', d.chapter || 0, d.total || 0);
+          }
+        }
+      } catch (_) {}
+      if (_pollActive) _progressTimer = setTimeout(poll, 1800);
+    }
+    poll();
+  }
+
+  function stopPolling() {
+    _pollActive = false;
+    if (_progressTimer) clearTimeout(_progressTimer);
+    hideProgressBar();
+  }
+
+  // ── AJAX step submit ──────────────────────────────────────────────────────────
+  function submitStepAjax(form, btn) {
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+
+    // Disable all other run buttons while this step is running
+    document.querySelectorAll('.step-run-btn, #runAllBtn').forEach(b => b.disabled = true);
+
+    startPolling();
+
+    fetch(form.action, { method: 'POST', body: new FormData(form), redirect: 'manual' })
+      .then(r => {
+        stopPolling();
+        // redirect: 'manual' → the response is an opaque redirect; just reload
+        window.location.reload();
+      })
+      .catch(err => {
+        stopPolling();
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+        document.querySelectorAll('.step-run-btn, #runAllBtn').forEach(b => b.disabled = false);
+        showToast('Błąd sieci: ' + err.message, 'error');
+      });
+  }
+
+  // Pipeline step forms → AJAX
   document.querySelectorAll('.step-form').forEach(form => {
     form.addEventListener('submit', e => {
+      e.preventDefault();
       const btn = form.querySelector('.step-run-btn');
-      btn.innerHTML = '<span class="spinner"></span>';
-      btn.disabled = true;
+      submitStepAjax(form, btn);
     });
   });
 
-  // Run all loading
-  document.getElementById('runAllForm').addEventListener('submit', () => {
+  // Run all → AJAX
+  const runAllForm = document.getElementById('runAllForm');
+  runAllForm.addEventListener('submit', e => {
+    e.preventDefault();
     const btn = document.getElementById('runAllBtn');
-    btn.innerHTML = '<span class="spinner"></span> Uruchamiam pipeline...';
-    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Pipeline...';
+    startPolling();
+    fetch(runAllForm.action, { method: 'POST', body: new FormData(runAllForm), redirect: 'manual' })
+      .then(() => { stopPolling(); window.location.reload(); })
+      .catch(err => { stopPolling(); btn.innerHTML = '<i data-lucide="play-circle"></i> Uruchom wszystko'; showToast('Błąd: ' + err.message, 'error'); });
   });
 
   // Save btn loading
@@ -372,6 +637,32 @@
     btn.innerHTML = '<span class="spinner"></span> Generuję...';
     btn.disabled = true;
   });
+
+  // Translation loading
+  ['De', 'Es'].forEach(lang => {
+    const form = document.getElementById(`translate${lang}Form`);
+    if (form) {
+      form.addEventListener('submit', () => {
+        const btn = document.getElementById(`translate${lang}Btn`);
+        btn.innerHTML = '<span class="spinner"></span> Generuję pakiet...';
+        btn.disabled = true;
+      });
+    }
+  });
+
+  // SEO character counter
+  const seoTextarea = document.getElementById('seoTextarea');
+  const seoCharCount = document.getElementById('seoCharCount');
+  if (seoTextarea && seoCharCount) {
+    function updateSeoCount() {
+      const len = seoTextarea.value.length;
+      const color = len > 2500 ? 'var(--rose)' : len > 2200 ? 'var(--amber)' : 'var(--text-muted)';
+      seoCharCount.textContent = `${len} / 2500 zn.`;
+      seoCharCount.style.color = color;
+    }
+    seoTextarea.addEventListener('input', updateSeoCount);
+    updateSeoCount();
+  }
 
   // Test connection
   document.getElementById('testBtn').addEventListener('click', async () => {
@@ -400,4 +691,83 @@
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 </script>
+
+<style>
+/* ── Generation progress bar ─────────────────────────────────────── */
+.gen-progress-bar {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 560px;
+  width: calc(100vw - 48px);
+}
+.gen-progress-bar.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.gen-progress-inner {
+  background: var(--bg-card, #1e1e2e);
+  border: 1px solid var(--border, #333355);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(99,102,241,0.15);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #9ca3af);
+}
+.gen-progress-icon::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-light, #818cf8);
+  animation: gen-pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes gen-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+.gen-progress-msg {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary, #e5e7eb);
+  font-weight: 500;
+}
+.gen-progress-frac {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-light, #818cf8);
+  font-weight: 600;
+  font-size: 0.78rem;
+  min-width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.gen-progress-track {
+  width: 80px;
+  height: 4px;
+  background: var(--border, #333355);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: none;
+}
+.gen-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent, #6366f1), var(--accent-light, #818cf8));
+  border-radius: 2px;
+  transition: width 0.4s ease;
+  width: 0%;
+}
+</style>
 {% endblock %}

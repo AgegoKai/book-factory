@@ -38,48 +38,84 @@ _BODY_FONT = "Helvetica"
 _BODY_FONT_BOLD = "Helvetica-Bold"
 _BODY_FONT_ITALIC = "Helvetica-Oblique"
 
+_STATIC_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "static", "fonts"))
+
+
+def _font_search_dirs() -> list[str]:
+    """Return candidate directories for TrueType fonts, ordered by preference."""
+    dirs = [
+        _STATIC_DIR,                                           # bundled fonts (highest prio)
+        r"C:\Windows\Fonts",                                   # Windows
+        "/usr/share/fonts/truetype/dejavu",                    # Debian/Ubuntu (Docker)
+        "/usr/share/fonts/dejavu",                             # some Debian variants
+        "/usr/share/fonts/truetype/liberation",                # Liberation
+        "/usr/share/fonts/liberation",
+        "/usr/share/fonts/truetype/freefont",
+        "/usr/share/fonts/truetype/noto",
+        "/usr/share/fonts/truetype",                           # broad fallback
+        "/usr/share/fonts",
+        # macOS system fonts
+        "/Library/Fonts",
+        "/System/Library/Fonts",
+        os.path.expanduser("~/Library/Fonts"),
+        # macOS Homebrew cask fonts
+        "/usr/local/share/fonts",
+        "/opt/homebrew/share/fonts",
+    ]
+    return [d for d in dirs if d]
+
+
+_FONT_SETS = [
+    # (alias, regular, bold, italic) — filenames to look for
+    ("DejaVu",      "DejaVuSerif.ttf",             "DejaVuSerif-Bold.ttf",        "DejaVuSerif-Italic.ttf"),
+    ("DejaVuSans",  "DejaVuSans.ttf",              "DejaVuSans-Bold.ttf",         "DejaVuSans-Oblique.ttf"),
+    ("Liberation",  "LiberationSerif-Regular.ttf", "LiberationSerif-Bold.ttf",    "LiberationSerif-Italic.ttf"),
+    ("LiberSans",   "LiberationSans-Regular.ttf",  "LiberationSans-Bold.ttf",     "LiberationSans-Italic.ttf"),
+    ("FreeSans",    "FreeSans.ttf",                "FreeSansBold.ttf",            "FreeSansOblique.ttf"),
+    ("NotoSans",    "NotoSans-Regular.ttf",        "NotoSans-Bold.ttf",           "NotoSans-Italic.ttf"),
+]
+
+
+def _try_register_set(folder: str, fname: str, regular: str, bold: str, italic: str) -> bool:
+    """Try to register one font family; return True on success."""
+    global _BODY_FONT, _BODY_FONT_BOLD, _BODY_FONT_ITALIC
+    rp = os.path.join(folder, regular)
+    if not os.path.isfile(rp):
+        return False
+    try:
+        pdfmetrics.registerFont(TTFont(fname, rp))
+        bp = os.path.join(folder, bold)
+        ip = os.path.join(folder, italic)
+        bold_name = fname + "Bold"
+        italic_name = fname + "Italic"
+        if os.path.isfile(bp):
+            pdfmetrics.registerFont(TTFont(bold_name, bp))
+            _BODY_FONT_BOLD = bold_name
+        else:
+            _BODY_FONT_BOLD = fname   # fallback to regular
+        if os.path.isfile(ip):
+            pdfmetrics.registerFont(TTFont(italic_name, ip))
+            _BODY_FONT_ITALIC = italic_name
+        else:
+            _BODY_FONT_ITALIC = fname
+        _BODY_FONT = fname
+        return True
+    except Exception:
+        return False
+
 
 def _register_fonts():
-    global _FONTS_REGISTERED, _BODY_FONT, _BODY_FONT_BOLD, _BODY_FONT_ITALIC
+    global _FONTS_REGISTERED
     if _FONTS_REGISTERED:
         return
+    _FONTS_REGISTERED = True   # always mark done; Helvetica is last-resort fallback
 
-    candidates = [
-        os.path.join(os.path.dirname(__file__), "..", "static"),
-        r"C:\Windows\Fonts",
-        "/usr/share/fonts/truetype/dejavu",
-        "/usr/share/fonts/truetype/liberation",
-        "/usr/share/fonts/truetype/freefont",
-        "/usr/share/fonts/dejavu",
-    ]
-
-    font_sets = [
-        ("DejaVu", "DejaVuSerif.ttf", "DejaVuSerif-Bold.ttf", "DejaVuSerif-Italic.ttf"),
-        ("DejaVuSans", "DejaVuSans.ttf", "DejaVuSans-Bold.ttf", "DejaVuSans-Oblique.ttf"),
-        ("Liberation", "LiberationSerif-Regular.ttf", "LiberationSerif-Bold.ttf", "LiberationSerif-Italic.ttf"),
-    ]
-
-    for folder in candidates:
-        for fname, regular, bold, italic in font_sets:
-            rp = os.path.normpath(os.path.join(folder, regular))
-            bp = os.path.normpath(os.path.join(folder, bold))
-            ip = os.path.normpath(os.path.join(folder, italic))
-            if os.path.isfile(rp):
-                try:
-                    pdfmetrics.registerFont(TTFont(fname, rp))
-                    if os.path.isfile(bp):
-                        pdfmetrics.registerFont(TTFont(fname + "Bold", bp))
-                        _BODY_FONT_BOLD = fname + "Bold"
-                    if os.path.isfile(ip):
-                        pdfmetrics.registerFont(TTFont(fname + "Italic", ip))
-                        _BODY_FONT_ITALIC = fname + "Italic"
-                    _BODY_FONT = fname
-                    _FONTS_REGISTERED = True
-                    return
-                except Exception:
-                    continue
-
-    _FONTS_REGISTERED = True  # Use Helvetica fallback
+    for folder in _font_search_dirs():
+        if not os.path.isdir(folder):
+            continue
+        for font_set in _FONT_SETS:
+            if _try_register_set(folder, *font_set):
+                return   # found a working font — done
 
 
 # ── Color palette ──────────────────────────────────────────────────────────────

@@ -16,8 +16,14 @@ class Settings(BaseSettings):
     google_model: str = "gemini-2.5-flash"
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    openrouter_model: str = "openrouter/free"
+    openrouter_model: str = "openrouter/auto"
+    # Public URL of your app (OpenRouter attribution); some proxies require a real https URL
+    openrouter_http_referer: str = "https://localhost"
+    # Max completion tokens for OpenAI-compatible providers (chapters, SEO); OpenRouter caps per model
+    llm_max_output_tokens: int = 8192
     request_timeout_seconds: int = 120
+    # Domyślny routing LLM gdy użytkownik nie nadpisze w UI: auto = kolejka LM→Gemini→OpenRouter
+    preferred_llm_provider: str = "auto"
 
     model_config = SettingsConfigDict(
         env_file=".env",

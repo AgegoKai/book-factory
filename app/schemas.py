@@ -15,6 +15,12 @@ class ProjectCreate(BaseModel):
     tone_preferences: str = "Dłuższe, naturalne zdania, ludzki styl."
     language: str = "pl"
     custom_system_prompt: str = ""
+    writing_style: str = ""
+    target_market: str = "en-US"
+    author_bio: str = ""
+    emotions_to_convey: str = ""
+    knowledge_to_share: str = ""
+    target_audience: str = ""
 
 
 class ProjectResponse(BaseModel):
@@ -29,6 +35,7 @@ class ProjectResponse(BaseModel):
 
 
 class UserSettingsUpdate(BaseModel):
+    preferred_llm_provider: str = "auto"
     lm_studio_base_url: str = ""
     lm_studio_api_key: str = ""
     lm_studio_model: str = ""
