@@ -7,13 +7,14 @@ class LoginForm(BaseModel):
 
 
 class ProjectCreate(BaseModel):
-    title: str
-    concept: str
-    inspiration_sources: str = Field(min_length=3)
+    title: str = Field(min_length=1)
+    concept: str = Field(min_length=1)
+    inspiration_sources: str = ""
     target_pages: int = 20
     target_words: int = 5000
-    tone_preferences: str = "Longer, natural sentences with clean pacing."
+    tone_preferences: str = "Dłuższe, naturalne zdania, ludzki styl."
     language: str = "pl"
+    custom_system_prompt: str = ""
 
 
 class ProjectResponse(BaseModel):
@@ -25,3 +26,13 @@ class ProjectResponse(BaseModel):
     llm_provider_used: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserSettingsUpdate(BaseModel):
+    lm_studio_base_url: str = ""
+    lm_studio_api_key: str = ""
+    lm_studio_model: str = ""
+    google_api_key: str = ""
+    google_model: str = ""
+    openrouter_api_key: str = ""
+    openrouter_model: str = ""

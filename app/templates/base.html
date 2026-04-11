@@ -3,27 +3,93 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{{ title or 'Book Factory' }}</title>
+  <title>{% block title %}Book Factory{% endblock %}</title>
+  <meta name="description" content="Automatyzacja pisania książek — od pomysłu do publikacji Amazon KDP.">
   <link rel="stylesheet" href="/static/styles.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
   <div class="shell">
     {% if user %}
     <aside class="sidebar">
-      <div>
-        <div class="brand">Book Factory</div>
-        <div class="muted">Automatyzacja pisania książek</div>
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">📚</div>
+        <div>
+          <div class="brand">Book Factory</div>
+          <div class="brand-sub">AI Writing Pipeline</div>
+        </div>
       </div>
+
       <nav>
-        <a href="/">Dashboard</a>
-        <a href="/projects/new">Nowy projekt</a>
+        <div class="sidebar-section-label">Nawigacja</div>
+        <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>
+          <i data-lucide="layout-dashboard"></i> Dashboard
+        </a>
+        <a href="/projects/new" {% if request.url.path == '/projects/new' %}aria-current="page"{% endif %}>
+          <i data-lucide="plus-circle"></i> Nowy projekt
+        </a>
+
+        <div class="sidebar-section-label">Konto</div>
+        <a href="/settings" {% if request.url.path == '/settings' %}aria-current="page"{% endif %}>
+          <i data-lucide="settings"></i> Ustawienia API
+        </a>
       </nav>
-      <form action="/logout" method="post">
-        <button class="ghost" type="submit">Wyloguj</button>
-      </form>
+
+      <div class="sidebar-user">
+        <div class="sidebar-user-info">
+          <div class="sidebar-avatar">{{ user.email[0].upper() }}</div>
+          <div class="sidebar-email">{{ user.email }}</div>
+        </div>
+        <form action="/logout" method="post">
+          <button type="submit" class="btn-ghost btn-sm" style="width:100%;justify-content:flex-start;gap:8px;">
+            <i data-lucide="log-out"></i> Wyloguj
+          </button>
+        </form>
+      </div>
     </aside>
     {% endif %}
-    <main class="main">{% block content %}{% endblock %}</main>
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
   </div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // Init Lucide icons
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // Toast system
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icons = { success: '✓', error: '✕', info: 'ℹ' };
+      toast.innerHTML = `<span>${icons[type] || 'ℹ'}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(20px)'; toast.style.transition = '0.3s'; setTimeout(() => toast.remove(), 300); }, 3500);
+    }
+
+    // Auto-show toast from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('saved') === '1') showToast('Zapisano pomyślnie!', 'success');
+
+    // Word counter for textareas
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('textarea[data-wordcount]').forEach(ta => {
+        const counter = ta.closest('.textarea-wrap')?.querySelector('.word-counter');
+        if (!counter) return;
+        const update = () => {
+          const words = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
+          counter.textContent = `${words.toLocaleString('pl')} słów`;
+        };
+        ta.addEventListener('input', update);
+        update();
+      });
+    });
+  </script>
 </body>
 </html>

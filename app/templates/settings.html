@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% block title %}Ustawienia API — Book Factory{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Konto</div>
+    <h1>Ustawienia API</h1>
+    <p class="subtitle">Zmień klucze API i konfigurację providerów bez edytowania pliku .env. Ustawienia są zapisane per użytkownik w bazie.</p>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success" style="margin-bottom:20px;">
+  <i data-lucide="check-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:6px;"></i>
+  Ustawienia zapisane pomyślnie!
+</div>
+{% endif %}
+
+<div class="alert alert-info" style="margin-bottom:24px;">
+  <strong>Kolejność prób:</strong> LM Studio (lokalny) → Google Gemini → OpenRouter → Template fallback. Pozostaw pole puste aby użyć wartości z pliku .env.
+</div>
+
+<form method="post" action="/settings" class="stack" id="settingsForm">
+
+  <!-- LM Studio -->
+  <div class="settings-section">
+    <div class="settings-section-header">
+      <div class="settings-section-icon lm">
+        <i data-lucide="cpu" style="width:18px;height:18px;color:#818cf8;"></i>
+      </div>
+      <div>
+        <div class="settings-section-title">LM Studio</div>
+        <div class="settings-section-sub">Lokalne modele — najtańsza opcja, działa offline. Twój Gemma 3 27B.</div>
+      </div>
+      <span class="badge badge-{{ 'ok' if s and s.lm_studio_base_url or s and s.lm_studio_api_key else 'missing' }}" style="margin-left:auto;">
+        {{ 'Skonfigurowane' if s and (s.lm_studio_base_url or s.lm_studio_api_key) else 'Domyślne z .env' }}
+      </span>
+    </div>
+    <div class="settings-section-body">
+      <div class="grid-2col">
+        <label>
+          Base URL
+          <input type="text" name="lm_studio_base_url"
+            value="{{ s.lm_studio_base_url if s else '' }}"
+            placeholder="http://127.0.0.1:1234/v1">
+          <span class="hint">Domyślnie: http://127.0.0.1:1234/v1</span>
+        </label>
+        <label>
+          Model
+          <input type="text" name="lm_studio_model"
+            value="{{ s.lm_studio_model if s else '' }}"
+            placeholder="gemma-3-27b-it">
+          <span class="hint">Identyfikator modelu załadowanego w LM Studio</span>
+        </label>
+      </div>
+      <label>
+        API Key <span style="color:var(--text-muted);font-weight:400;">(wymagany jeśli LM Studio wymaga autoryzacji)</span>
+        <input type="password" name="lm_studio_api_key"
+          value="{{ s.lm_studio_api_key if s else '' }}"
+          placeholder="sk-lm-... lub zostaw puste">
+        <span class="hint">Klucz do API LM Studio — potrzebny gdy serwer wymaga Bearer token</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Google Gemini -->
+  <div class="settings-section">
+    <div class="settings-section-header">
+      <div class="settings-section-icon ggl">
+        <i data-lucide="zap" style="width:18px;height:18px;color:#34d399;"></i>
+      </div>
+      <div>
+        <div class="settings-section-title">Google Gemini</div>
+        <div class="settings-section-sub">Oficjalne Google AI API. Dobry fallback z darmowym tierem.</div>
+      </div>
+      <span class="badge badge-{{ 'ok' if s and s.google_api_key else 'missing' }}" style="margin-left:auto;">
+        {{ 'Skonfigurowane' if s and s.google_api_key else 'Brak klucza' }}
+      </span>
+    </div>
+    <div class="settings-section-body">
+      <div class="grid-2col">
+        <label>
+          Google API Key
+          <input type="password" name="google_api_key"
+            value="{{ s.google_api_key if s else '' }}"
+            placeholder="AIza...">
+          <span class="hint"><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent-light);">Pobierz z AI Studio →</a></span>
+        </label>
+        <label>
+          Model
+          <input type="text" name="google_model"
+            value="{{ s.google_model if s else '' }}"
+            placeholder="gemini-2.5-flash">
+          <span class="hint">Domyślnie: gemini-2.5-flash</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- OpenRouter -->
+  <div class="settings-section">
+    <div class="settings-section-header">
+      <div class="settings-section-icon or">
+        <i data-lucide="globe" style="width:18px;height:18px;color:#fbbf24;"></i>
+      </div>
+      <div>
+        <div class="settings-section-title">OpenRouter</div>
+        <div class="settings-section-sub">Router darmowych modeli. Ostatni fallback gdy lokalne i Gemini niedostępne.</div>
+      </div>
+      <span class="badge badge-{{ 'ok' if s and s.openrouter_api_key else 'missing' }}" style="margin-left:auto;">
+        {{ 'Skonfigurowane' if s and s.openrouter_api_key else 'Brak klucza' }}
+      </span>
+    </div>
+    <div class="settings-section-body">
+      <div class="grid-2col">
+        <label>
+          OpenRouter API Key
+          <input type="password" name="openrouter_api_key"
+            value="{{ s.openrouter_api_key if s else '' }}"
+            placeholder="sk-or-...">
+          <span class="hint"><a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent-light);">Pobierz z OpenRouter →</a></span>
+        </label>
+        <label>
+          Model
+          <input type="text" name="openrouter_model"
+            value="{{ s.openrouter_model if s else '' }}"
+            placeholder="openrouter/auto">
+          <span class="hint">Użyj <code>:free</code> suffix dla darmowych modeli, np. <code>mistralai/mistral-7b-instruct:free</code></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions-row" style="padding-top:8px;">
+    <button type="submit" id="saveSettingsBtn">
+      <i data-lucide="save"></i> Zapisz ustawienia
+    </button>
+    <button type="button" id="testConnectionBtn" class="btn-secondary btn">
+      <i data-lucide="radio"></i> Testuj połączenie
+    </button>
+    <div id="testResult" style="font-size:0.82rem;color:var(--text-muted);"></div>
+  </div>
+</form>
+
+<!-- Environment info -->
+<div class="card" style="margin-top:24px;">
+  <div style="font-size:0.85rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+    <i data-lucide="info" style="width:15px;height:15px;color:var(--accent-light);"></i>
+    Jak działają ustawienia
+  </div>
+  <div style="font-size:0.8rem;color:var(--text-secondary);display:flex;flex-direction:column;gap:8px;">
+    <div>• Wartości wpisane tutaj <strong>nadpisują</strong> wartości z pliku <code>.env</code> dla Twojego konta.</div>
+    <div>• Jeśli pole jest puste, aplikacja używa wartości z <code>.env</code>.</div>
+    <div>• Klucze API są przechowywane w lokalnej bazie SQLite — nie są wysyłane nigdzie indziej.</div>
+    <div>• Zmiana ustawień działa natychmiast — nie trzeba restartować serwera.</div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+    // form will submit naturally
+  });
+  document.getElementById('settingsForm').addEventListener('submit', () => {
+    const btn = document.getElementById('saveSettingsBtn');
+    btn.innerHTML = '<span class="spinner"></span> Zapisuję...';
+    btn.disabled = true;
+  });
+
+  document.getElementById('testConnectionBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('testConnectionBtn');
+    const result = document.getElementById('testResult');
+    btn.innerHTML = '<span class="spinner"></span> Testowanie...';
+    btn.disabled = true;
+    result.textContent = '';
+    try {
+      const res = await fetch('/settings/test', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        result.innerHTML = `<span style="color:var(--emerald);">✓ ${data.provider} odpowiedział: "${data.response}"</span>`;
+        showToast('Połączenie działa poprawnie!', 'success');
+      } else {
+        result.innerHTML = `<span style="color:var(--rose);">✕ ${data.error}</span>`;
+        showToast('Brak połączenia z LLM — sprawdź klucze', 'error');
+      }
+    } catch(e) {
+      result.innerHTML = `<span style="color:var(--rose);">Błąd sieciowy: ${e.message}</span>`;
+    }
+    btn.innerHTML = '<i data-lucide="radio"></i> Testuj ponownie';
+    btn.disabled = false;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+</script>
+{% endblock %}

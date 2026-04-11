@@ -1,14 +1,66 @@
-{% extends 'base.html' %}
-{% block content %}
-<section class="center-card auth-card">
-  <div class="eyebrow">Login page</div>
-  <h1>Zaloguj się do Book Factory</h1>
-  <p class="muted">Domyślny admin tworzy się z .env przy pierwszym starcie.</p>
-  {% if error %}<div class="alert">{{ error }}</div>{% endif %}
-  <form method="post" action="/login" class="stack">
-    <label>Email<input type="email" name="email" required></label>
-    <label>Hasło<input type="password" name="password" required></label>
-    <button type="submit">Zaloguj</button>
-  </form>
-</section>
-{% endblock %}
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Logowanie — Book Factory</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="login-page">
+  <!-- Left branding panel -->
+  <div class="login-left">
+    <div class="login-branding">
+      <div class="login-logo">📚</div>
+      <h1 class="login-title">Book Factory</h1>
+      <p class="login-subtitle">Automatyzacja pisania książek od A do Z</p>
+      <ul class="login-features">
+        <li><i data-lucide="cpu"></i> LM Studio + Gemini + OpenRouter</li>
+        <li><i data-lucide="layers"></i> 7-krokowy pipeline automatyzacji</li>
+        <li><i data-lucide="edit-3"></i> Ręczna edycja każdego kroku</li>
+        <li><i data-lucide="download"></i> Eksport DOCX i PDF</li>
+        <li><i data-lucide="shopping-bag"></i> Brief SEO i okładki Amazon KDP</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Right form panel -->
+  <div class="login-right">
+    <div class="login-form-wrap">
+      <h2 class="login-form-title">Zaloguj się</h2>
+      <p class="login-form-sub">Domyślny admin tworzony przy pierwszym starcie z pliku .env lub ustawień.</p>
+
+      {% if error %}
+      <div class="alert" style="margin-bottom:20px;">
+        <i data-lucide="alert-circle" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:6px;"></i>
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="post" action="/login" class="stack" id="loginForm">
+        <label>
+          Email
+          <input type="email" name="email" id="email" required autocomplete="email" placeholder="admin@example.com">
+        </label>
+        <label>
+          Hasło
+          <input type="password" name="password" id="password" required autocomplete="current-password" placeholder="••••••••">
+        </label>
+        <button type="submit" id="loginBtn" style="width:100%;margin-top:8px;">
+          <i data-lucide="log-in"></i> Zaloguj się
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  document.getElementById('loginForm').addEventListener('submit', () => {
+    const btn = document.getElementById('loginBtn');
+    btn.innerHTML = '<span class="spinner"></span> Logowanie...';
+    btn.disabled = true;
+  });
+</script>
+</body>
+</html>

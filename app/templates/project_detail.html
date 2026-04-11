@@ -1,90 +1,403 @@
 {% extends 'base.html' %}
+{% block title %}{{ project.title }} — Book Factory{% endblock %}
 {% block content %}
+
+<!-- Page header -->
 <div class="page-head">
   <div>
     <div class="eyebrow">Projekt</div>
     <h1>{{ project.title }}</h1>
-    <p class="muted">{{ project.concept }}</p>
+    <p class="subtitle">{{ project.concept | truncate(120) }}</p>
   </div>
   <div class="actions-row">
-    <form method="post" action="/projects/{{ project.id }}/run"><button type="submit">Uruchom wszystko</button></form>
-    <a class="button-link secondary" href="/projects/{{ project.id }}/export/docx">DOCX</a>
-    <a class="button-link secondary" href="/projects/{{ project.id }}/export/pdf">PDF</a>
+    <form method="post" action="/projects/{{ project.id }}/run" id="runAllForm">
+      <button type="submit" id="runAllBtn">
+        <i data-lucide="play-circle"></i> Uruchom wszystko
+      </button>
+    </form>
+    <a class="btn-secondary btn" href="/projects/{{ project.id }}/export/docx">
+      <i data-lucide="file-text"></i> DOCX
+    </a>
+    <a class="btn-secondary btn" href="/projects/{{ project.id }}/export/pdf">
+      <i data-lucide="file"></i> PDF
+    </a>
   </div>
 </div>
 
-<div class="grid detail-grid tutorial-grid">
-  <section class="card">
-    <h3>Krótki tutorial</h3>
-    <ol class="tutorial-list">
-      <li>Uzupełnij dane wejściowe i źródła inspiracji.</li>
-      <li>Uruchom krok 1 i poczekaj na konspekt.</li>
-      <li>Nie przejdziesz dalej, dopóki poprzedni etap nie będzie gotowy.</li>
-      <li>Możesz ręcznie poprawić każdy blok i zapisać.</li>
-      <li>Na końcu pobierz DOCX lub PDF.</li>
-    </ol>
-    <p class="meta">Status: {{ project.status }} • Provider: {{ project.llm_provider_used or '-' }}</p>
-    <p class="meta">{{ project.target_pages }} stron • {{ project.target_words }} słów</p>
-    <p class="meta">Outline: {{ metrics.outline_words }} słów • Draft: {{ metrics.draft_words }} słów • Edit: {{ metrics.edited_words }} słów</p>
-  </section>
-  <section class="card">
-    <h3>Darmowe API do testów</h3>
-    <div class="provider-stack">
-      {% for provider in providers %}
-      <div class="provider-item">
-        <strong>{{ provider.name }}</strong>
-        <span class="provider-badge {{ provider.status }}">{{ 'gotowe' if provider.status == 'configured' else 'brak klucza' }}</span>
-        <p class="muted small">{{ provider.summary }}</p>
-      </div>
-      {% endfor %}
+<!-- Stats row -->
+<div class="stats-row">
+  <div class="stat-item">
+    <div class="stat-value">{{ project.target_pages }}</div>
+    <div class="stat-label">Cel stron</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">{{ "{:,}".format(project.target_words).replace(',', ' ') }}</div>
+    <div class="stat-label">Cel słów</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">{{ "{:,}".format(metrics.draft_words).replace(',', ' ') }}</div>
+    <div class="stat-label">Draft słów</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">{{ "{:,}".format(metrics.edited_words).replace(',', ' ') }}</div>
+    <div class="stat-label">Edit słów</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">
+      <span class="badge badge-{{ project.status }}" style="font-size:0.75rem;">{{ project.status.replace('_', ' ') }}</span>
     </div>
-    <p class="small muted">Praktycznie najlepszy darmowy układ do testów: LM Studio, potem Gemini API, potem OpenRouter free.</p>
-  </section>
+    <div class="stat-label">Status</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value" style="font-size:0.8rem;color:var(--text-secondary);">{{ project.llm_provider_used or '—' }}</div>
+    <div class="stat-label">Ostatni provider</div>
+  </div>
 </div>
 
-<section class="card">
-  <h3>Zakładka pomysłów</h3>
-  <form class="stack" method="post" action="/projects/{{ project.id }}/ideas">
-    <label>Nisza<input type="text" name="niche" value="{{ project.title }}"></label>
-    <label>Notatki / linki inspiracji<textarea name="notes" rows="4">{{ project.inspiration_sources }}</textarea></label>
-    <button type="submit">Wygeneruj pomysły / research</button>
-  </form>
-  <pre>{{ project.idea_research or 'Brak wygenerowanego researchu.' }}</pre>
-</section>
+<!-- Tabs -->
+<div class="tabs" id="mainTabs">
+  <button class="tab active" data-target="pipeline" type="button">
+    <i data-lucide="git-branch"></i> Pipeline
+  </button>
+  <button class="tab" data-target="editor" type="button">
+    <i data-lucide="edit-3"></i> Edytor
+  </button>
+  <button class="tab" data-target="research" type="button">
+    <i data-lucide="search"></i> Research
+  </button>
+  <button class="tab" data-target="providers" type="button">
+    <i data-lucide="cpu"></i> Providery
+  </button>
+</div>
 
-<section class="card">
-  <h3>Etapy automatyzacji</h3>
-  <div class="stage-list">
-    {% for step in steps %}
-    <div class="stage-card {{ 'locked' if not step.unlocked else '' }} {{ 'done' if step.completed else '' }}">
-      <div>
-        <strong>{{ step.label }}</strong>
-        <p class="muted small">{{ step.description }}</p>
+<!-- =================== TAB: Pipeline =================== -->
+<div class="tab-panel active" id="tab-pipeline">
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
+    
+    <!-- Pipeline stepper -->
+    <div class="card">
+      <div class="pipeline" id="pipeline">
+        {% for step in steps %}
+        <div class="pipeline-step {{ 'done' if step.completed else ('unlocked' if step.unlocked else 'locked') }}">
+          <div class="step-indicator">
+            {% if step.completed %}
+              <i data-lucide="check" style="width:16px;height:16px;"></i>
+            {% elif step.unlocked %}
+              {{ loop.index }}
+            {% else %}
+              <i data-lucide="lock" style="width:14px;height:14px;"></i>
+            {% endif %}
+          </div>
+          <div class="step-content">
+            <div class="step-label">{{ step.label }}</div>
+            <div class="step-desc">{{ step.description }}</div>
+            <div class="step-actions">
+              {% if step.completed %}
+                <span class="badge badge-ok"><i data-lucide="check-circle" style="width:10px;height:10px;"></i> Gotowe</span>
+                <form method="post" action="/projects/{{ project.id }}/steps/{{ step.key }}" style="display:inline;">
+                  <button type="submit" class="btn-sm btn-secondary" title="Uruchom ponownie">
+                    <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i> Regeneruj
+                  </button>
+                </form>
+              {% elif step.unlocked %}
+                <form method="post" action="/projects/{{ project.id }}/steps/{{ step.key }}" class="step-form">
+                  <button type="submit" class="btn-sm step-run-btn">
+                    <i data-lucide="play" style="width:12px;height:12px;"></i> Uruchom
+                  </button>
+                </form>
+              {% else %}
+                <span class="badge badge-missing"><i data-lucide="lock" style="width:10px;height:10px;"></i> Zablokowane</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
       </div>
-      <div class="actions-row">
-        {% if step.completed %}
-        <span class="provider-badge configured">gotowe</span>
-        {% elif step.unlocked %}
-        <form method="post" action="/projects/{{ project.id }}/steps/{{ step.key }}"><button type="submit">Uruchom</button></form>
+    </div>
+
+    <!-- Tutorial sidebar -->
+    <div>
+      <div class="card" style="margin-bottom:16px;">
+        <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+          <i data-lucide="info" style="width:16px;height:16px;color:var(--accent-light);"></i> Jak to działa
+        </div>
+        <ol style="display:flex;flex-direction:column;gap:10px;padding-left:18px;font-size:0.8rem;color:var(--text-secondary);">
+          <li>Uzupełnij dane projektu i kliknij <strong>Konspekt</strong>.</li>
+          <li>Każdy krok odblokuje następny gdy jest gotowy.</li>
+          <li>Możesz ręcznie edytować każdą sekcję w zakładce <strong>Edytor</strong>.</li>
+          <li>Na końcu pobierz DOCX lub PDF z przycisków powyżej.</li>
+          <li>Klucze API zmieniasz w <a href="/settings" style="color:var(--accent-light);">Ustawienia</a>.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+          <i data-lucide="info" style="width:16px;height:16px;color:var(--accent-light);"></i> Szczegóły projektu
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:0.78rem;color:var(--text-secondary);">
+          <div><span style="color:var(--text-muted);">Język:</span> {{ project.language.upper() }}</div>
+          <div><span style="color:var(--text-muted);">Cel:</span> {{ project.target_pages }} str / {{ project.target_words }} słów</div>
+          <div><span style="color:var(--text-muted);">Draft:</span> {{ metrics.draft_words }} słów</div>
+          <div><span style="color:var(--text-muted);">Outline:</span> {{ metrics.outline_words }} słów</div>
+          {% if project.inspiration_sources %}
+          <div><span style="color:var(--text-muted);">Inspiracje:</span> {{ project.inspiration_sources | truncate(80) }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== TAB: Editor =================== -->
+<div class="tab-panel" id="tab-editor">
+  <form method="post" action="/projects/{{ project.id }}/save" id="editorForm">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div class="editor-section">
+        <div class="editor-header">
+          <span class="editor-title">1. Konspekt</span>
+          <span class="editor-meta">{{ metrics.outline_words }} słów</span>
+        </div>
+        <div class="textarea-wrap">
+          <textarea name="outline_text" rows="14" data-wordcount>{{ project.outline_text }}</textarea>
+          <span class="word-counter">0 słów</span>
+        </div>
+      </div>
+      <div class="editor-section">
+        <div class="editor-header">
+          <span class="editor-title">2. Prompty rozdziałów</span>
+        </div>
+        <div class="textarea-wrap">
+          <textarea name="chapter_prompts" rows="14" data-wordcount>{{ project.chapter_prompts }}</textarea>
+          <span class="word-counter">0 słów</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor-section" style="margin-bottom:16px;">
+      <div class="editor-header">
+        <span class="editor-title">3. Draft książki</span>
+        <span class="editor-meta">{{ metrics.draft_words }} słów</span>
+      </div>
+      <div class="textarea-wrap">
+        <textarea name="manuscript_text" rows="22" data-wordcount>{{ project.manuscript_text }}</textarea>
+        <span class="word-counter">0 słów</span>
+      </div>
+    </div>
+
+    <div class="editor-section" style="margin-bottom:16px;">
+      <div class="editor-header">
+        <span class="editor-title">4. Zredagowany manuskrypt</span>
+        <span class="editor-meta">{{ metrics.edited_words }} słów</span>
+      </div>
+      <div class="textarea-wrap">
+        <textarea name="edited_text" rows="22" data-wordcount>{{ project.edited_text }}</textarea>
+        <span class="word-counter">0 słów</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div class="editor-section">
+        <div class="editor-header"><span class="editor-title">5. Opis SEO Amazon</span></div>
+        <div class="textarea-wrap">
+          <textarea name="seo_description" rows="12" data-wordcount>{{ project.seo_description }}</textarea>
+          <span class="word-counter">0 słów</span>
+        </div>
+      </div>
+      <div class="editor-section">
+        <div class="editor-header"><span class="editor-title">6. Brief okładki</span></div>
+        <div class="textarea-wrap">
+          <textarea name="cover_brief" rows="12" data-wordcount>{{ project.cover_brief }}</textarea>
+          <span class="word-counter">0 słów</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor-section" style="margin-bottom:16px;">
+      <div class="editor-header"><span class="editor-title">7. Checklista publikacji Amazon KDP</span></div>
+      <div class="textarea-wrap">
+        <textarea name="publish_checklist" rows="14" data-wordcount>{{ project.publish_checklist }}</textarea>
+        <span class="word-counter">0 słów</span>
+      </div>
+    </div>
+
+    <!-- System prompt editor -->
+    <div class="editor-section" style="margin-bottom:24px;">
+      <div class="editor-header">
+        <span class="editor-title">System Prompt pisarza (używany w Draft i Edit)</span>
+        <span class="editor-meta" style="color:var(--accent-light);">Customizable</span>
+      </div>
+      <div class="textarea-wrap">
+        <textarea name="custom_system_prompt" rows="10" data-wordcount>{{ project.custom_system_prompt }}</textarea>
+        <span class="word-counter">0 słów</span>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button type="submit" id="saveBtn">
+        <i data-lucide="save"></i> Zapisz poprawki
+      </button>
+      <span style="font-size:0.78rem;color:var(--text-muted);">Zmiany są zapisywane do bazy i uwzględniane w następnym kroku pipeline.</span>
+    </div>
+  </form>
+</div>
+
+<!-- =================== TAB: Research =================== -->
+<div class="tab-panel" id="tab-research">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+    <div class="card">
+      <div style="font-size:0.95rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+        <i data-lucide="lightbulb" style="width:17px;height:17px;color:var(--amber);"></i>
+        Generator pomysłów
+      </div>
+      <form class="stack" method="post" action="/projects/{{ project.id }}/ideas" id="ideasForm">
+        <label>
+          Nisza / temat
+          <input type="text" name="niche" value="{{ project.title }}" required>
+        </label>
+        <label>
+          Notatki / linki / kontekst
+          <textarea name="notes" rows="5">{{ project.inspiration_sources }}</textarea>
+        </label>
+        <button type="submit" id="ideasBtn">
+          <i data-lucide="search"></i> Wygeneruj pomysły / research
+        </button>
+      </form>
+    </div>
+    <div>
+      <div class="card">
+        <div style="font-size:0.85rem;font-weight:700;margin-bottom:12px;color:var(--text-primary);">
+          Wyniki researchu
+        </div>
+        {% if project.idea_research %}
+        <pre>{{ project.idea_research }}</pre>
         {% else %}
-        <button type="button" disabled>Zablokowane</button>
+        <p style="font-size:0.8rem;color:var(--text-muted);font-style:italic;">
+          Kliknij "Wygeneruj pomysły" aby zobaczyć wyniki researchu.
+        </p>
         {% endif %}
       </div>
     </div>
+  </div>
+</div>
+
+<!-- =================== TAB: Providers =================== -->
+<div class="tab-panel" id="tab-providers">
+  <div style="margin-bottom:20px;" class="flex-between">
+    <div>
+      <div style="font-size:1rem;font-weight:700;">Status providerów LLM</div>
+      <p style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Kolejność prób: LM Studio → Google Gemini → OpenRouter → Template fallback</p>
+    </div>
+    <a href="/settings" class="btn-secondary btn btn-sm">
+      <i data-lucide="settings"></i> Zarządzaj kluczami
+    </a>
+  </div>
+
+  <div class="provider-grid">
+    {% for p in providers %}
+    <div class="provider-card {{ p.status }}">
+      <div class="provider-card-name">
+        <i data-lucide="{{ p.icon }}" style="color:{{ 'var(--emerald)' if p.status == 'configured' else 'var(--rose)' }};"></i>
+        {{ p.name }}
+        <span class="badge badge-{{ p.status }}" style="margin-left:auto;">{{ 'OK' if p.status == 'configured' else 'Brak' }}</span>
+      </div>
+      <p class="provider-detail">{{ p.summary }}</p>
+      <p class="provider-detail" style="color:var(--text-secondary);">{{ p.detail }}</p>
+    </div>
     {% endfor %}
   </div>
-</section>
 
-<form class="stack" method="post" action="/projects/{{ project.id }}/save">
-  <div class="grid detail-grid long">
-    <section class="card"><h3>1. Konspekt</h3><textarea name="outline_text" rows="12">{{ project.outline_text }}</textarea></section>
-    <section class="card"><h3>2. Prompty rozdziałów</h3><textarea name="chapter_prompts" rows="12">{{ project.chapter_prompts }}</textarea></section>
-    <section class="card"><h3>3. Draft książki</h3><textarea name="manuscript_text" rows="18">{{ project.manuscript_text }}</textarea></section>
-    <section class="card"><h3>4. Redakcja</h3><textarea name="edited_text" rows="18">{{ project.edited_text }}</textarea></section>
-    <section class="card"><h3>5. SEO Amazon</h3><textarea name="seo_description" rows="10">{{ project.seo_description }}</textarea></section>
-    <section class="card"><h3>6. Okładka</h3><textarea name="cover_brief" rows="10">{{ project.cover_brief }}</textarea></section>
-    <section class="card"><h3>7. Publikacja</h3><textarea name="publish_checklist" rows="10">{{ project.publish_checklist }}</textarea></section>
+  <!-- Test connection -->
+  <div class="card" style="margin-top:20px;">
+    <div style="font-size:0.875rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+      <i data-lucide="wifi" style="width:16px;height:16px;color:var(--accent-light);"></i>
+      Test połączenia
+    </div>
+    <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:16px;">
+      Sprawdź połączenie z aktywnym providerem. Używa Twoich klucz API z ustawień.
+    </p>
+    <div class="actions-row">
+      <button type="button" id="testBtn" class="btn-secondary btn">
+        <i data-lucide="radio" style="width:14px;height:14px;"></i> Testuj połączenie
+      </button>
+      <div id="testResult" style="font-size:0.8rem;color:var(--text-muted);"></div>
+    </div>
   </div>
-  <div class="actions-row"><button type="submit">Zapisz poprawki ręczne</button></div>
-</form>
+</div>
+
+<script>
+  // Tabs
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.tab-panel');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.target).classList.add('active');
+    });
+  });
+
+  // Open research tab if anchor
+  if (window.location.hash === '#research') {
+    document.querySelector('[data-target="research"]').click();
+  }
+
+  // Pipeline buttons loading state
+  document.querySelectorAll('.step-form').forEach(form => {
+    form.addEventListener('submit', e => {
+      const btn = form.querySelector('.step-run-btn');
+      btn.innerHTML = '<span class="spinner"></span>';
+      btn.disabled = true;
+    });
+  });
+
+  // Run all loading
+  document.getElementById('runAllForm').addEventListener('submit', () => {
+    const btn = document.getElementById('runAllBtn');
+    btn.innerHTML = '<span class="spinner"></span> Uruchamiam pipeline...';
+    btn.disabled = true;
+  });
+
+  // Save btn loading
+  document.getElementById('editorForm').addEventListener('submit', () => {
+    const btn = document.getElementById('saveBtn');
+    btn.innerHTML = '<span class="spinner"></span> Zapisuję...';
+    btn.disabled = true;
+  });
+
+  // Ideas loading
+  document.getElementById('ideasForm').addEventListener('submit', () => {
+    const btn = document.getElementById('ideasBtn');
+    btn.innerHTML = '<span class="spinner"></span> Generuję...';
+    btn.disabled = true;
+  });
+
+  // Test connection
+  document.getElementById('testBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('testBtn');
+    const result = document.getElementById('testResult');
+    btn.innerHTML = '<span class="spinner"></span> Testuję...';
+    btn.disabled = true;
+    result.textContent = '';
+    try {
+      const res = await fetch('/settings/test', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        result.innerHTML = `<span style="color:var(--emerald);">✓ ${data.provider} — "${data.response}"</span>`;
+        showToast(`Połączenie OK: ${data.provider}`, 'success');
+      } else {
+        result.innerHTML = `<span style="color:var(--rose);">✕ ${data.error}</span>`;
+        showToast('Brak połączenia z LLM', 'error');
+      }
+    } catch(e) {
+      result.innerHTML = `<span style="color:var(--rose);">Błąd sieci: ${e.message}</span>`;
+    }
+    btn.innerHTML = '<i data-lucide="radio" style="width:14px;height:14px;"></i> Testuj ponownie';
+    btn.disabled = false;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+</script>
 {% endblock %}

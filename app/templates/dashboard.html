@@ -1,28 +1,62 @@
 {% extends 'base.html' %}
+{% block title %}Dashboard — Book Factory{% endblock %}
 {% block content %}
+
 <div class="page-head">
   <div>
     <div class="eyebrow">Dashboard</div>
-    <h1>Hej {{ user.email }}</h1>
-    <p class="muted">Twórz projekty, uruchamiaj pełny pipeline książki i eksportuj do PDF/DOCX.</p>
+    <h1>Twoje projekty</h1>
+    <p class="subtitle">Zarządzaj pipeline'ami książek, uruchamiaj automatyzację i eksportuj.</p>
   </div>
-  <a class="button-link" href="/projects/new">+ Nowy projekt</a>
+  <a class="btn" href="/projects/new">
+    <i data-lucide="plus"></i> Nowy projekt
+  </a>
 </div>
-<div class="grid cards">
+
+<!-- Stats summary -->
+<div class="stats-row">
+  <div class="stat-item">
+    <div class="stat-value">{{ projects | length }}</div>
+    <div class="stat-label">Projekty</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">{{ projects | selectattr('status', 'equalto', 'ready') | list | length }}</div>
+    <div class="stat-label">Gotowe</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">{{ projects | rejectattr('manuscript_text', 'equalto', '') | list | length }}</div>
+    <div class="stat-label">Z draftem</div>
+  </div>
+</div>
+
+<div class="projects-grid">
   {% for project in projects %}
-  <a class="card" href="/projects/{{ project.id }}">
-    <div class="card-top">
-      <strong>{{ project.title }}</strong>
-      <span class="badge">{{ project.status }}</span>
+  <a class="project-card" href="/projects/{{ project.id }}">
+    <div class="project-card-head">
+      <div class="project-card-title">{{ project.title }}</div>
+      <span class="badge badge-{{ project.status }}">{{ project.status.replace('_', ' ') }}</span>
     </div>
-    <p>{{ project.concept[:180] }}{% if project.concept|length > 180 %}...{% endif %}</p>
-    <div class="meta">{{ project.target_pages }} stron • {{ project.target_words }} słów • {{ project.llm_provider_used or 'not run yet' }}</div>
+    <p class="project-card-concept">{{ project.concept }}</p>
+    <div class="project-card-footer">
+      <span class="project-card-stat"><i data-lucide="file-text"></i> {{ project.target_pages }} str</span>
+      <span class="project-card-stat"><i data-lucide="align-left"></i> {{ project.target_words }} słów</span>
+      <span class="project-card-stat"><i data-lucide="globe"></i> {{ project.language.upper() }}</span>
+      {% if project.llm_provider_used %}
+      <span class="project-card-stat"><i data-lucide="cpu"></i> {{ project.llm_provider_used }}</span>
+      {% endif %}
+    </div>
   </a>
   {% else %}
-  <div class="card empty">
-    <strong>Brak projektów</strong>
-    <p>Zacznij od nowego projektu książki.</p>
+  <div class="empty-state">
+    <div class="empty-state-icon">📚</div>
+    <h3>Brak projektów</h3>
+    <p>Zacznij od stworzenia pierwszego projektu książki. Pipeline zautomatyzuje cały proces.</p>
+    <a class="btn" href="/projects/new"><i data-lucide="plus"></i> Stwórz pierwszy projekt</a>
   </div>
   {% endfor %}
 </div>
+
+<script>
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+</script>
 {% endblock %}

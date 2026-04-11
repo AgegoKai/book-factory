@@ -1,57 +1,170 @@
 {% extends 'base.html' %}
+{% block title %}Nowy projekt — Book Factory{% endblock %}
 {% block content %}
-<div class="page-head"><div><div class="eyebrow">Nowy projekt</div><h1>Utwórz książkę krok po kroku</h1><p class="muted">Nie przejdziesz dalej, dopóki nie uzupełnisz tego, co potrzebne.</p></div></div>
-<form id="wizardForm" class="stack card wide wizard" method="post" action="/projects">
-  <div class="wizard-steps">
-    <div class="wizard-step active" data-step="0">1. Tytuł i pomysł</div>
-    <div class="wizard-step" data-step="1">2. Rozmiar książki</div>
-    <div class="wizard-step" data-step="2">3. Styl i język</div>
-    <div class="wizard-step" data-step="3">4. Źródła inspiracji</div>
+
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Nowy projekt</div>
+    <h1>Stwórz book project</h1>
+    <p class="subtitle">Wypełnij 4 kroki wizarda — nie przejdziesz dalej bez wymaganych pól.</p>
   </div>
+</div>
 
-  <section class="wizard-panel active" data-step="0">
-    <label>Tytuł<input type="text" name="title" required></label>
-    <label>Pomysł / zawartość<textarea name="concept" rows="6" required></textarea></label>
-    <p class="small muted">Bez tytułu i pomysłu nie da się zrobić konspektu.</p>
-  </section>
-
-  <section class="wizard-panel" data-step="1">
-    <div class="split">
-      <label>Ilość stron<input type="number" name="target_pages" value="20" min="1" required></label>
-      <label>Ilość słów<input type="number" name="target_words" value="5000" min="500" required></label>
+<div class="wizard-container">
+  <!-- Progress indicator -->
+  <div class="wizard-progress" id="wizardProgress">
+    <div class="wizard-step-indicator active" data-step="0">
+      <div class="wizard-step-dot">1</div>
+      <div class="wizard-step-label">Tytuł</div>
     </div>
-    <p class="small muted">Dla małej książki zwykle 20 stron i około 4k-7k słów.</p>
-  </section>
-
-  <section class="wizard-panel" data-step="2">
-    <label>Styl / preferencje<textarea name="tone_preferences" rows="5" required>Dłuższe, naturalne zdania, ludzki styl, bez sztywnego tonu, chyba że temat wymaga krótszych cięć.</textarea></label>
-    <label>Język<input type="text" name="language" value="pl" required></label>
-  </section>
-
-  <section class="wizard-panel" data-step="3">
-    <label>Źródła inspiracji / linki / notatki<textarea name="inspiration_sources" rows="6" required></textarea></label>
-    <p class="small muted">Tu klient wrzuca strony, książki, konkurencję albo notatki, z których model ma brać kierunek.</p>
-  </section>
-
-  <div class="wizard-actions">
-    <button id="prevBtn" type="button" class="button-link secondary">Wstecz</button>
-    <button id="nextBtn" type="button">Dalej</button>
-    <button id="submitBtn" type="submit" style="display:none;">Utwórz projekt</button>
+    <div class="wizard-step-indicator" data-step="1">
+      <div class="wizard-step-dot">2</div>
+      <div class="wizard-step-label">Rozmiar</div>
+    </div>
+    <div class="wizard-step-indicator" data-step="2">
+      <div class="wizard-step-dot">3</div>
+      <div class="wizard-step-label">Styl</div>
+    </div>
+    <div class="wizard-step-indicator" data-step="3">
+      <div class="wizard-step-dot">4</div>
+      <div class="wizard-step-label">Prompt</div>
+    </div>
   </div>
-</form>
+
+  <form id="wizardForm" method="post" action="/projects">
+
+    <!-- Step 0: Tytuł i pomysł -->
+    <div class="wizard-panel active wizard-card" data-step="0">
+      <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--text-primary);">
+        <i data-lucide="book-open" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--accent-light);"></i>
+        Tytuł i pomysł
+      </h2>
+      <div class="stack">
+        <label>
+          Tytuł książki *
+          <input type="text" name="title" id="title" required placeholder="np. Fizyka czarnych dziur dla każdego">
+          <span class="hint">Roboczy tytuł — możesz go potem zmienić</span>
+        </label>
+        <label>
+          Pomysł / zawartość *
+          <div class="textarea-wrap">
+            <textarea name="concept" id="concept" rows="6" required data-wordcount
+              placeholder="Opisz o czym jest książka, kto jest targetem, jakie problemy rozwiązuje, jaki jest główny przekaz..."></textarea>
+            <span class="word-counter">0 słów</span>
+          </div>
+          <span class="hint">Im więcej szczegółów, tym lepsza jakość konspektu i draftu</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 1: Rozmiar -->
+    <div class="wizard-panel wizard-card" data-step="1" style="display:none;">
+      <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--text-primary);">
+        <i data-lucide="bar-chart-2" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--accent-light);"></i>
+        Rozmiar książki
+      </h2>
+      <div class="stack">
+        <div class="form-row">
+          <label>
+            Liczba stron
+            <input type="number" name="target_pages" value="20" min="5" max="500" required>
+            <span class="hint">Zwykle 20-50 str. dla tytułu krótszego</span>
+          </label>
+          <label>
+            Liczba słów
+            <input type="number" name="target_words" value="12000" min="1000" max="200000" required>
+            <span class="hint">12k-15k = ok. 20 stron</span>
+          </label>
+        </div>
+        <label>
+          Język
+          <select name="language">
+            <option value="pl" selected>🇵🇱 Polski</option>
+            <option value="en">🇬🇧 English</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="fr">🇫🇷 Français</option>
+          </select>
+        </label>
+        <div class="alert-info alert" style="font-size:0.8rem;">
+          <strong>Wskazówka:</strong> Dla książki 12 000–15 000 słów (20 stron A4) pipeline generuje tekst rozdział po rozdziale dla zachowania ciągłości i uniknięcia timeoutów.
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Styl i inspiracje -->
+    <div class="wizard-panel wizard-card" data-step="2" style="display:none;">
+      <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--text-primary);">
+        <i data-lucide="feather" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--accent-light);"></i>
+        Styl i inspiracje
+      </h2>
+      <div class="stack">
+        <label>
+          Preferencje stylu / tonu
+          <textarea name="tone_preferences" rows="4"
+            placeholder="np. Dłuższe, naturalne zdania. Ludzki styl, bez sztywnego tonu akademickiego. Interstellar-style narracja z detalami technicznymi.">Dłuższe, naturalne zdania, ludzki styl, bez sztywnego tonu, chyba że temat wymaga precyzji. Show, don't tell.</textarea>
+          <span class="hint">To trafi do systemu jako wskazówka stylistyczna dla każdego kroku</span>
+        </label>
+        <label>
+          Źródła inspiracji / notatki / linki
+          <textarea name="inspiration_sources" rows="5"
+            placeholder="Wklej linki, nazwy książek, fragmenty, notatki z badań, podobne tytuły..."></textarea>
+          <span class="hint">Model będzie czerpał z tych wskazówek przy tworzeniu konspektu</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 3: System prompt -->
+    <div class="wizard-panel wizard-card" data-step="3" style="display:none;">
+      <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:20px;color:var(--text-primary);">
+        <i data-lucide="terminal" style="width:18px;height:18px;vertical-align:middle;margin-right:8px;color:var(--accent-light);"></i>
+        System prompt pisarza
+      </h2>
+      <div class="stack">
+        <div class="alert-info alert" style="font-size:0.79rem;">
+          Ten prompt jest używany do kroków <strong>Draft</strong> i <strong>Redakcja</strong>. Możesz go dostosować lub zostawić domyślny. Zmiany możesz robić też po stworzeniu projektu.
+        </div>
+        <label>
+          System prompt (opcjonalnie — zostaw puste dla domyślnego)
+          <div class="textarea-wrap">
+            <textarea name="custom_system_prompt" rows="12" data-wordcount
+              placeholder="Zostaw puste aby użyć wbudowanego systemu prompta pisarza prozy wysokiej jakości...">{{ default_system_prompt }}</textarea>
+            <span class="word-counter">0 słów</span>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="wizard-actions">
+      <button type="button" id="prevBtn" class="btn-secondary" style="visibility:hidden;">
+        <i data-lucide="arrow-left"></i> Wstecz
+      </button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="stepCounter" style="font-size:0.78rem;color:var(--text-muted);">Krok 1 z 4</span>
+        <button type="button" id="nextBtn">
+          Dalej <i data-lucide="arrow-right"></i>
+        </button>
+        <button type="submit" id="submitBtn" style="display:none;" class="btn">
+          <i data-lucide="rocket"></i> Utwórz projekt
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
 
 <script>
 (() => {
-  const form = document.getElementById('wizardForm');
-  const panels = [...form.querySelectorAll('.wizard-panel')];
-  const steps = [...form.querySelectorAll('.wizard-step')];
+  const TOTAL = 4;
+  const panels = [...document.querySelectorAll('.wizard-panel')];
+  const indicators = [...document.querySelectorAll('.wizard-step-indicator')];
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const submitBtn = document.getElementById('submitBtn');
+  const counter = document.getElementById('stepCounter');
   let current = 0;
 
   function panelValid(index) {
-    const inputs = panels[index].querySelectorAll('input, textarea');
+    const inputs = panels[index].querySelectorAll('input[required], textarea[required]');
     for (const input of inputs) {
       if (!input.checkValidity() || !String(input.value || '').trim()) return false;
     }
@@ -59,29 +172,43 @@
   }
 
   function render() {
-    panels.forEach((panel, i) => panel.classList.toggle('active', i === current));
-    steps.forEach((step, i) => {
-      step.classList.toggle('active', i === current);
-      step.classList.toggle('done', i < current);
+    panels.forEach((p, i) => {
+      p.style.display = i === current ? 'block' : 'none';
+    });
+    indicators.forEach((ind, i) => {
+      ind.classList.toggle('active', i === current);
+      ind.classList.toggle('done', i < current);
+      const dot = ind.querySelector('.wizard-step-dot');
+      if (i < current) dot.innerHTML = '<i data-lucide="check" style="width:14px;height:14px;"></i>';
+      else dot.textContent = i + 1;
     });
     prevBtn.style.visibility = current === 0 ? 'hidden' : 'visible';
-    nextBtn.style.display = current === panels.length - 1 ? 'none' : 'inline-flex';
-    submitBtn.style.display = current === panels.length - 1 ? 'inline-flex' : 'none';
-    nextBtn.disabled = !panelValid(current);
-    submitBtn.disabled = !panelValid(current);
+    nextBtn.style.display = current === TOTAL - 1 ? 'none' : 'inline-flex';
+    submitBtn.style.display = current === TOTAL - 1 ? 'inline-flex' : 'none';
+    const valid = panelValid(current);
+    nextBtn.disabled = !valid;
+    submitBtn.disabled = false; // last step (system prompt) is optional
+    counter.textContent = `Krok ${current + 1} z ${TOTAL}`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
-  form.addEventListener('input', render);
+  document.getElementById('wizardForm').addEventListener('input', render);
+
   nextBtn.addEventListener('click', () => {
     if (!panelValid(current)) return;
-    current += 1;
-    render();
+    if (current < TOTAL - 1) { current++; render(); window.scrollTo(0,0); }
   });
   prevBtn.addEventListener('click', () => {
-    current = Math.max(0, current - 1);
-    render();
+    if (current > 0) { current--; render(); window.scrollTo(0,0); }
   });
+
+  submitBtn.addEventListener('click', () => {
+    submitBtn.innerHTML = '<span class="spinner"></span> Tworzę projekt...';
+    submitBtn.disabled = true;
+  });
+
   render();
 })();
+if (typeof lucide !== 'undefined') lucide.createIcons();
 </script>
 {% endblock %}
