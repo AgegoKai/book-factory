@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unicodedata
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -128,6 +129,9 @@ def create_project(
     emotions_to_convey: str = Form(""),
     knowledge_to_share: str = Form(""),
     target_audience: str = Form(""),
+    pdf_font_family: str = Form("auto"),
+    pdf_heading_size: int = Form(22),
+    pdf_body_size: int = Form(11),
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
@@ -146,6 +150,9 @@ def create_project(
         emotions_to_convey=emotions_to_convey,
         knowledge_to_share=knowledge_to_share,
         target_audience=target_audience,
+        pdf_font_family=pdf_font_family,
+        pdf_heading_size=pdf_heading_size,
+        pdf_body_size=pdf_body_size,
     )
     project = BookProject(owner_id=user.id, **payload.model_dump())
     db.add(project)
@@ -196,6 +203,23 @@ def project_detail(
 @app.post("/projects/{project_id}/save")
 def save_project_sections(
     project_id: int,
+    # Metadata fields
+    title: str = Form(""),
+    concept: str = Form(""),
+    language: str = Form(""),
+    target_market: str = Form(""),
+    writing_style: str = Form(""),
+    author_bio: str = Form(""),
+    target_audience: str = Form(""),
+    tone_preferences: str = Form(""),
+    emotions_to_convey: str = Form(""),
+    knowledge_to_share: str = Form(""),
+    target_pages: int = Form(0),
+    target_words: int = Form(0),
+    pdf_font_family: str = Form(""),
+    pdf_heading_size: int = Form(0),
+    pdf_body_size: int = Form(0),
+    # Content fields
     outline_text: str = Form(""),
     chapter_prompts: str = Form(""),
     manuscript_text: str = Form(""),
@@ -210,6 +234,38 @@ def save_project_sections(
     db: Session = Depends(get_db),
 ):
     project = _project_or_404(project_id, user, db)
+    # Update metadata only if non-empty values were submitted
+    if title.strip():
+        project.title = title.strip()
+    if concept.strip():
+        project.concept = concept.strip()
+    if language.strip():
+        project.language = language.strip()
+    if target_market.strip():
+        project.target_market = target_market.strip()
+    if writing_style.strip():
+        project.writing_style = writing_style.strip()
+    if author_bio.strip():
+        project.author_bio = author_bio.strip()
+    if target_audience.strip():
+        project.target_audience = target_audience.strip()
+    if tone_preferences.strip():
+        project.tone_preferences = tone_preferences.strip()
+    if emotions_to_convey.strip():
+        project.emotions_to_convey = emotions_to_convey.strip()
+    if knowledge_to_share.strip():
+        project.knowledge_to_share = knowledge_to_share.strip()
+    if target_pages > 0:
+        project.target_pages = target_pages
+    if target_words > 0:
+        project.target_words = target_words
+    if pdf_font_family.strip():
+        project.pdf_font_family = pdf_font_family.strip()
+    if pdf_heading_size > 0:
+        project.pdf_heading_size = pdf_heading_size
+    if pdf_body_size > 0:
+        project.pdf_body_size = pdf_body_size
+    # Content fields (always overwrite — can be cleared by user)
     project.outline_text = outline_text
     project.chapter_prompts = chapter_prompts
     project.manuscript_text = manuscript_text
@@ -223,7 +279,7 @@ def save_project_sections(
     db.add(project)
     db.commit()
     return RedirectResponse(
-        url=f"/projects/{project.id}?saved=1", status_code=status.HTTP_303_SEE_OTHER
+        url=f"/projects/{project.id}?saved=1&tab=editor", status_code=status.HTTP_303_SEE_OTHER
     )
 
 

@@ -21,6 +21,9 @@ class ProjectCreate(BaseModel):
     emotions_to_convey: str = ""
     knowledge_to_share: str = ""
     target_audience: str = ""
+    pdf_font_family: str = "auto"
+    pdf_heading_size: int = 22
+    pdf_body_size: int = 11
 
 
 class ProjectResponse(BaseModel):

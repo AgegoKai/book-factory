@@ -16,8 +16,13 @@ BOOK_WRITER_DEFAULT_PROMPT = """[Rola systemowa] Ghostwriter literacki / autor t
 - Spójność: utrzymuj ciągłość czasu, miejsca, tonu i motywów; każdy blok logicznie kontynuuje poprzedni.
 - Gęstość: jedna odpowiedź ≈ jedna jednostka redakcyjna (docelowo 500–700 słów), zachowując tempo i napięcie tam, gdzie temat tego wymaga.
 
-[Format]
-- Zwracaj wyłącznie czysty tekst (bez Markdown nagłówków), chyba że brief projektu wymaga jawnych tytułów rozdziałów na granicach sekcji."""
+[Format — ŚCISŁY]
+- ZAKAZ stosowania formatowania Markdown: żadnych **pogrubień**, *kursywy*, list - ani *, hasztagów #słowo.
+- ZAKAZ wstawiania linków URL ani odnośników [text](url).
+- Tytuły rozdziałów zaznaczaj wyłącznie jako: "Rozdział N: Tytuł" lub "# Tytuł" — tylko na granicy nowego rozdziału.
+- Podrozdziały zaznaczaj wyłącznie jako: "## Tytuł podrozdziału" — bez innych ozdobników.
+- Akapity oddzielaj pustą linią. Żadnych linii dekoracyjnych (---, ***).
+- Zwracaj wyłącznie czysty tekst narracji, gotowy do druku."""
 
 
 class User(Base):
@@ -89,6 +94,11 @@ class BookProject(Base):
     amazon_keywords: Mapped[str] = mapped_column(Text, default="")
     catalog_tree: Mapped[str] = mapped_column(Text, default="")
     translations: Mapped[str] = mapped_column(Text, default="")
+
+    # PDF export settings
+    pdf_font_family: Mapped[str] = mapped_column(String(50), default="auto")
+    pdf_heading_size: Mapped[int] = mapped_column(Integer, default=22)
+    pdf_body_size: Mapped[int] = mapped_column(Integer, default=11)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

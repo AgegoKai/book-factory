@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 book_factory.db
 .pytest_cache/
+# Docker / lokalna baza na wolumenie
+data/book_factory.db
+data/*.db
+!data/.gitkeep
+backups/

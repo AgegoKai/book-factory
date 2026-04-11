@@ -23,6 +23,9 @@ def migrate_db() -> None:
         ("amazon_keywords", "TEXT DEFAULT ''"),
         ("catalog_tree", "TEXT DEFAULT ''"),
         ("translations", "TEXT DEFAULT ''"),
+        ("pdf_font_family", "VARCHAR(50) DEFAULT 'auto'"),
+        ("pdf_heading_size", "INTEGER DEFAULT 22"),
+        ("pdf_body_size", "INTEGER DEFAULT 11"),
     ]
     with engine.connect() as conn:
         result = conn.execute(text("PRAGMA table_info(book_projects)"))

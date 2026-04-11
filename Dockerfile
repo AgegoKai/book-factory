@@ -13,5 +13,6 @@ RUN apt-get update \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
+RUN chmod +x scripts/docker-entrypoint.sh
 EXPOSE 8008
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8008"]
+ENTRYPOINT ["./scripts/docker-entrypoint.sh"]

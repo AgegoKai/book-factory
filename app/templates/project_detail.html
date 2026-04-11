@@ -62,6 +62,9 @@
   <button class="tab {% if active_tab == 'editor' %}active{% endif %}" data-target="editor" type="button">
     <i data-lucide="edit-3"></i> Edytor
   </button>
+  <button class="tab {% if active_tab == 'amazon' %}active{% endif %}" data-target="amazon" type="button">
+    <i data-lucide="shopping-bag"></i> Amazon / SEO
+  </button>
   <button class="tab {% if active_tab == 'translations' %}active{% endif %}" data-target="translations" type="button">
     <i data-lucide="languages"></i> Tłumaczenia
     {% if translations %}<span class="badge badge-ok" style="margin-left:4px;font-size:0.65rem;">{{ translations | length }}</span>{% endif %}
@@ -166,6 +169,121 @@
 <div class="tab-panel {% if active_tab == 'editor' %}active{% endif %}" id="tab-editor">
   <form method="post" action="/projects/{{ project.id }}/save" id="editorForm">
 
+    <!-- ── Metadane projektu ──────────────────────────────── -->
+    <div class="card" style="margin-bottom:20px;">
+      <div style="font-size:0.95rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+        <i data-lucide="settings-2" style="width:16px;height:16px;color:var(--accent-light);"></i>
+        Metadane projektu
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <label>
+          Tytuł
+          <input type="text" name="title" value="{{ project.title }}">
+        </label>
+        <label>
+          Autor (bio / imię nazwisko)
+          <input type="text" name="author_bio" value="{{ project.author_bio }}">
+          <span class="hint">Pierwsze słowa pojawiają się na stronie tytułowej PDF</span>
+        </label>
+        <label>
+          Pomysł / opis
+          <textarea name="concept" rows="3">{{ project.concept }}</textarea>
+        </label>
+        <label>
+          Odbiorca docelowy
+          <textarea name="target_audience" rows="3">{{ project.target_audience }}</textarea>
+        </label>
+        <div class="form-row" style="grid-column:1/-1;">
+          <label>
+            Język
+            <select name="language">
+              <option value="pl" {% if project.language == 'pl' %}selected{% endif %}>🇵🇱 Polski</option>
+              <option value="en" {% if project.language == 'en' %}selected{% endif %}>🇬🇧 English</option>
+              <option value="de" {% if project.language == 'de' %}selected{% endif %}>🇩🇪 Deutsch</option>
+              <option value="es" {% if project.language == 'es' %}selected{% endif %}>🇪🇸 Español</option>
+              <option value="fr" {% if project.language == 'fr' %}selected{% endif %}>🇫🇷 Français</option>
+            </select>
+          </label>
+          <label>
+            Rynek docelowy (Amazon)
+            <select name="target_market">
+              <option value="en-US" {% if project.target_market == 'en-US' %}selected{% endif %}>🇺🇸 Amazon US</option>
+              <option value="de-DE" {% if project.target_market == 'de-DE' %}selected{% endif %}>🇩🇪 Amazon DE</option>
+              <option value="es-ES" {% if project.target_market == 'es-ES' %}selected{% endif %}>🇪🇸 Amazon ES</option>
+              <option value="pl-PL" {% if project.target_market == 'pl-PL' %}selected{% endif %}>🇵🇱 Amazon PL</option>
+            </select>
+          </label>
+          <label>
+            Styl pisania
+            <select name="writing_style">
+              <option value="">— bez zmian —</option>
+              <option value="konwersacyjny i przystępny" {% if project.writing_style == 'konwersacyjny i przystępny' %}selected{% endif %}>Konwersacyjny i przystępny</option>
+              <option value="naukowy i precyzyjny" {% if project.writing_style == 'naukowy i precyzyjny' %}selected{% endif %}>Naukowy i precyzyjny</option>
+              <option value="motywacyjny i inspirujący" {% if project.writing_style == 'motywacyjny i inspirujący' %}selected{% endif %}>Motywacyjny i inspirujący</option>
+              <option value="narracyjny storytelling" {% if project.writing_style == 'narracyjny storytelling' %}selected{% endif %}>Narracyjny storytelling</option>
+              <option value="praktyczny how-to" {% if project.writing_style == 'praktyczny how-to' %}selected{% endif %}>Praktyczny how-to</option>
+              <option value="akademicki i formalny" {% if project.writing_style == 'akademicki i formalny' %}selected{% endif %}>Akademicki i formalny</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-row" style="grid-column:1/-1;">
+          <label>
+            Cel — liczba stron
+            <input type="number" name="target_pages" value="{{ project.target_pages }}" min="5" max="500">
+          </label>
+          <label>
+            Cel — liczba słów
+            <input type="number" name="target_words" value="{{ project.target_words }}" min="1000" max="200000">
+          </label>
+        </div>
+        <label style="grid-column:1/-1;">
+          Preferencje tonu / stylu
+          <textarea name="tone_preferences" rows="2">{{ project.tone_preferences }}</textarea>
+        </label>
+        <label>
+          Emocje do przekazania
+          <textarea name="emotions_to_convey" rows="2">{{ project.emotions_to_convey }}</textarea>
+        </label>
+        <label>
+          Wiedza / ekspertyza autora
+          <textarea name="knowledge_to_share" rows="2">{{ project.knowledge_to_share }}</textarea>
+        </label>
+      </div>
+    </div>
+
+    <!-- ── Ustawienia PDF ─────────────────────────────────── -->
+    <div class="card" style="margin-bottom:20px;">
+      <div style="font-size:0.95rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+        <i data-lucide="file-type" style="width:16px;height:16px;color:var(--accent-light);"></i>
+        Ustawienia PDF
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+        <label>
+          Czcionka (font family)
+          <select name="pdf_font_family">
+            <option value="auto" {% if (project.pdf_font_family or 'auto') == 'auto' %}selected{% endif %}>Auto (pierwsza dostępna)</option>
+            <option value="DejaVu" {% if project.pdf_font_family == 'DejaVu' %}selected{% endif %}>DejaVu Serif</option>
+            <option value="DejaVuSans" {% if project.pdf_font_family == 'DejaVuSans' %}selected{% endif %}>DejaVu Sans</option>
+            <option value="Liberation" {% if project.pdf_font_family == 'Liberation' %}selected{% endif %}>Liberation Serif (Times-like)</option>
+            <option value="LiberSans" {% if project.pdf_font_family == 'LiberSans' %}selected{% endif %}>Liberation Sans (Arial-like)</option>
+            <option value="FreeSans" {% if project.pdf_font_family == 'FreeSans' %}selected{% endif %}>FreeSans</option>
+            <option value="NotoSans" {% if project.pdf_font_family == 'NotoSans' %}selected{% endif %}>Noto Sans</option>
+          </select>
+          <span class="hint">Zmiana wpływa na cały tekst PDF</span>
+        </label>
+        <label>
+          Rozmiar nagłówków rozdziałów (pt)
+          <input type="number" name="pdf_heading_size" value="{{ project.pdf_heading_size or 22 }}" min="14" max="48">
+          <span class="hint">Domyślnie 22 pt</span>
+        </label>
+        <label>
+          Rozmiar tekstu podstawowego (pt)
+          <input type="number" name="pdf_body_size" value="{{ project.pdf_body_size or 11 }}" min="8" max="18">
+          <span class="hint">Domyślnie 11 pt</span>
+        </label>
+      </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
       <div class="editor-section">
         <div class="editor-header">
@@ -210,11 +328,69 @@
       </div>
     </div>
 
+    <!-- System prompt editor -->
+    <div class="editor-section" style="margin-bottom:24px;">
+      <div class="editor-header">
+        <span class="editor-title">System Prompt pisarza (używany w Draft i Edit)</span>
+        <span class="editor-meta" style="color:var(--accent-light);">Customizable</span>
+      </div>
+      <div class="textarea-wrap">
+        <textarea name="custom_system_prompt" rows="10" data-wordcount>{{ project.custom_system_prompt }}</textarea>
+        <span class="word-counter">0 słów</span>
+      </div>
+    </div>
+
+    <!-- Hidden fields that keep Amazon/SEO data alive when saving from editor tab -->
+    <input type="hidden" name="seo_description" id="hidden_seo" value="{{ project.seo_description }}">
+    <input type="hidden" name="amazon_keywords" id="hidden_keywords" value="{{ project.amazon_keywords }}">
+    <input type="hidden" name="catalog_tree" id="hidden_catalog" value="{{ project.catalog_tree }}">
+    <input type="hidden" name="cover_brief" id="hidden_cover" value="{{ project.cover_brief }}">
+    <input type="hidden" name="publish_checklist" id="hidden_checklist" value="{{ project.publish_checklist }}">
+
+    <div class="actions-row">
+      <button type="submit" id="saveBtn">
+        <i data-lucide="save"></i> Zapisz poprawki
+      </button>
+      <span style="font-size:0.78rem;color:var(--text-muted);">Zmiany są zapisywane do bazy i uwzględniane w następnym kroku pipeline.</span>
+    </div>
+  </form>
+</div>
+
+<!-- =================== TAB: Amazon / SEO =================== -->
+<div class="tab-panel {% if active_tab == 'amazon' %}active{% endif %}" id="tab-amazon">
+
+  <div style="margin-bottom:16px;">
+    <p style="font-size:0.8rem;color:var(--text-muted);">Dane Amazon i SEO — nie pojawiają się w PDF. Edytuj je w zakładce <strong>Edytor</strong> (sekcje 5–9) lub regeneruj przez Pipeline.</p>
+  </div>
+
+  <form method="post" action="/projects/{{ project.id }}/save" id="amazonForm">
+    <!-- Metadata hidden fields to avoid overwriting -->
+    <input type="hidden" name="title" value="{{ project.title }}">
+    <input type="hidden" name="concept" value="{{ project.concept }}">
+    <input type="hidden" name="language" value="{{ project.language }}">
+    <input type="hidden" name="target_market" value="{{ project.target_market }}">
+    <input type="hidden" name="writing_style" value="{{ project.writing_style }}">
+    <input type="hidden" name="author_bio" value="{{ project.author_bio }}">
+    <input type="hidden" name="target_audience" value="{{ project.target_audience }}">
+    <input type="hidden" name="tone_preferences" value="{{ project.tone_preferences }}">
+    <input type="hidden" name="emotions_to_convey" value="{{ project.emotions_to_convey }}">
+    <input type="hidden" name="knowledge_to_share" value="{{ project.knowledge_to_share }}">
+    <input type="hidden" name="target_pages" value="{{ project.target_pages }}">
+    <input type="hidden" name="target_words" value="{{ project.target_words }}">
+    <input type="hidden" name="pdf_font_family" value="{{ project.pdf_font_family or 'auto' }}">
+    <input type="hidden" name="pdf_heading_size" value="{{ project.pdf_heading_size or 22 }}">
+    <input type="hidden" name="pdf_body_size" value="{{ project.pdf_body_size or 11 }}">
+    <input type="hidden" name="outline_text" value="{{ project.outline_text }}">
+    <input type="hidden" name="chapter_prompts" value="{{ project.chapter_prompts }}">
+    <input type="hidden" name="manuscript_text" value="{{ project.manuscript_text }}">
+    <input type="hidden" name="edited_text" value="{{ project.edited_text }}">
+    <input type="hidden" name="custom_system_prompt" value="{{ project.custom_system_prompt }}">
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
       <div class="editor-section">
         <div class="editor-header">
           <span class="editor-title">5. Opis SEO Amazon</span>
-          <span class="editor-meta" id="seoCharCount" style="color:var(--text-muted);">0 / 2500 zn.</span>
+          <span class="editor-meta" id="seoCharCount" style="color:var(--text-muted);">{{ project.seo_description | length }} / 2500 zn.</span>
         </div>
         <div class="textarea-wrap">
           <textarea name="seo_description" rows="14" data-wordcount id="seoTextarea">{{ project.seo_description }}</textarea>
@@ -237,7 +413,7 @@
         <span class="editor-title">7. Drzewo katalogu Amazon + 3 idealne ścieżki</span>
       </div>
       <div class="textarea-wrap">
-        <textarea name="catalog_tree" rows="14" data-wordcount>{{ project.catalog_tree }}</textarea>
+        <textarea name="catalog_tree" rows="12" data-wordcount>{{ project.catalog_tree }}</textarea>
         <span class="word-counter">0 słów</span>
       </div>
     </div>
@@ -259,23 +435,10 @@
       </div>
     </div>
 
-    <!-- System prompt editor -->
-    <div class="editor-section" style="margin-bottom:24px;">
-      <div class="editor-header">
-        <span class="editor-title">System Prompt pisarza (używany w Draft i Edit)</span>
-        <span class="editor-meta" style="color:var(--accent-light);">Customizable</span>
-      </div>
-      <div class="textarea-wrap">
-        <textarea name="custom_system_prompt" rows="10" data-wordcount>{{ project.custom_system_prompt }}</textarea>
-        <span class="word-counter">0 słów</span>
-      </div>
-    </div>
-
     <div class="actions-row">
-      <button type="submit" id="saveBtn">
-        <i data-lucide="save"></i> Zapisz poprawki
+      <button type="submit">
+        <i data-lucide="save"></i> Zapisz dane Amazon / SEO
       </button>
-      <span style="font-size:0.78rem;color:var(--text-muted);">Zmiany są zapisywane do bazy i uwzględniane w następnym kroku pipeline.</span>
     </div>
   </form>
 </div>

@@ -283,6 +283,12 @@ class BookPipelineService:
 
                 PROMPTY ROZDZIAŁÓW:
                 {project.chapter_prompts}
+
+                WAŻNE — FORMAT WYJŚCIA:
+                - Pisz wyłącznie czysty tekst narracji, bez Markdown (**bold**, *italic*, list punktowanych).
+                - Nie dodawaj linków URL, hasztagów (#słowo), ani ozdobnych separatorów (---, ***).
+                - Rozdziały zaznaczaj: "Rozdział N: Tytuł" lub "# Tytuł".
+                - Podrozdziały zaznaczaj: "## Tytuł". Nic więcej.
                 """),
                 cfg,
             )
@@ -312,6 +318,12 @@ class BookPipelineService:
 
                 Konspekt całości (dla zachowania ciągłości):
                 {project.outline_text[:2000]}
+
+                WAŻNE — FORMAT WYJŚCIA:
+                - Pisz wyłącznie czysty tekst narracji, bez Markdown (**bold**, *italic*, list punktowanych).
+                - Nie dodawaj linków URL, hasztagów (#słowo), ani ozdobnych separatorów (---, ***).
+                - Podrozdziały zaznaczaj tylko: "## Tytuł" — nic więcej.
+                - Bez metakomentarzy typu "W tym rozdziale omówię...".
                 """)
 
                 text, provider = self._generate(system_prompt, user_msg, cfg)

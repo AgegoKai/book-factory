@@ -117,6 +117,36 @@
           <span class="hint">Im dokładniejsza persona, tym lepsze SEO i treść</span>
         </label>
 
+        <!-- PDF settings -->
+        <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+          <div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.05em;">Ustawienia PDF</div>
+          <div class="form-row">
+            <label>
+              Czcionka PDF
+              <select name="pdf_font_family">
+                <option value="auto" selected>Auto (pierwsza dostępna)</option>
+                <option value="DejaVu">DejaVu Serif</option>
+                <option value="DejaVuSans">DejaVu Sans</option>
+                <option value="Liberation">Liberation Serif (Times-like)</option>
+                <option value="LiberSans">Liberation Sans (Arial-like)</option>
+                <option value="FreeSans">FreeSans</option>
+                <option value="NotoSans">Noto Sans</option>
+              </select>
+              <span class="hint">Można zmienić potem w projekcie</span>
+            </label>
+            <label>
+              Rozmiar nagłówka (pt)
+              <input type="number" name="pdf_heading_size" value="22" min="14" max="48">
+              <span class="hint">Tytuły rozdziałów, domyślnie 22</span>
+            </label>
+            <label>
+              Rozmiar tekstu (pt)
+              <input type="number" name="pdf_body_size" value="11" min="8" max="18">
+              <span class="hint">Tekst akapitów, domyślnie 11</span>
+            </label>
+          </div>
+        </div>
+
         <div class="alert-info alert" style="font-size:0.8rem;">
           <strong>Wskazówka rynkowa:</strong> Niemcy oczekują konkretnych danych i faktów, Amerykanie reagują na storytelling i transformację, Hiszpanie cenią emocje i relacje. System dostosuje SEO i katalog do wybranego rynku.
         </div>

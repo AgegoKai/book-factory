@@ -5,4 +5,10 @@ services:
       - "8008:8008"
     env_file:
       - .env
+    environment:
+      # Nadpisuje .env — baza na trwałym wolumenie (przetrwa docker compose down bez -v)
+      DATABASE_URL: sqlite:////app/data/book_factory.db
+      BOOK_FACTORY_DB_PATH: /app/data/book_factory.db
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped
