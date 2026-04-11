@@ -9,7 +9,7 @@ class LoginForm(BaseModel):
 class ProjectCreate(BaseModel):
     title: str
     concept: str
-    inspiration_sources: str = ""
+    inspiration_sources: str = Field(min_length=3)
     target_pages: int = 20
     target_words: int = 5000
     tone_preferences: str = "Longer, natural sentences with clean pacing."

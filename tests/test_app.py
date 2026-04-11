@@ -52,6 +52,12 @@ def test_login_and_project_flow(tmp_path):
         assert detail.status_code == 200
         assert "Test Book" in detail.text
 
+        outline = client.post(f"{create.headers['location']}/steps/outline", cookies=cookies, follow_redirects=False)
+        assert outline.status_code == 303
+
+        prompts = client.post(f"{create.headers['location']}/steps/prompts", cookies=cookies, follow_redirects=False)
+        assert prompts.status_code == 303
+
         health = client.get("/health")
         assert health.status_code == 200
         assert health.json()["status"] == "ok"

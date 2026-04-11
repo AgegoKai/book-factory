@@ -77,7 +77,7 @@ def create_project(
     request: Request,
     title: str = Form(...),
     concept: str = Form(...),
-    inspiration_sources: str = Form(""),
+    inspiration_sources: str = Form(...),
     target_pages: int = Form(20),
     target_words: int = Form(5000),
     tone_preferences: str = Form("Longer, natural sentences with clean pacing."),
@@ -109,7 +109,25 @@ def project_detail(request: Request, project_id: int, user: User = Depends(curre
         "edited_words": len((project.edited_text or "").split()),
         "outline_words": len((project.outline_text or "").split()),
     }
-    return templates.TemplateResponse(request, "project_detail.html", {"user": user, "project": project, "metrics": metrics})
+    steps = _step_status(project)
+    providers = [
+        {
+            "name": "LM Studio",
+            "summary": "Najtańsza opcja, bo lokalna. Działa z Twoją Gemmą 3 27B.",
+            "status": "configured" if settings.lm_studio_base_url else "missing",
+        },
+        {
+            "name": "Google Gemini API",
+            "summary": "Oficjalne darmowe API testowe. Dobre jako awaryjny provider.",
+            "status": "configured" if settings.google_api_key else "missing",
+        },
+        {
+            "name": "OpenRouter free",
+            "summary": "Router darmowych modeli, prosty fallback bez lokalnego GPU.",
+            "status": "configured" if settings.openrouter_api_key else "missing",
+        },
+    ]
+    return templates.TemplateResponse(request, "project_detail.html", {"user": user, "project": project, "metrics": metrics, "steps": steps, "providers": providers})
 
 
 @app.post("/projects/{project_id}/save")
@@ -144,6 +162,21 @@ def run_project(project_id: int, user: User = Depends(current_user), db: Session
     project.status = "running"
     db.commit()
     project = book_pipeline_service.run_full_pipeline(project)
+    db.add(project)
+    db.commit()
+    return RedirectResponse(url=f"/projects/{project.id}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/projects/{project_id}/steps/{step_name}")
+def run_project_step(step_name: str, project_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    project = _project_or_404(project_id, user, db)
+    steps = _step_status(project)
+    target = next((step for step in steps if step["key"] == step_name), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Unknown step")
+    if not target["unlocked"]:
+        raise HTTPException(status_code=400, detail="Previous step is incomplete")
+    project = book_pipeline_service.run_step(project, step_name)
     db.add(project)
     db.commit()
     return RedirectResponse(url=f"/projects/{project.id}", status_code=status.HTTP_303_SEE_OTHER)
@@ -186,3 +219,47 @@ def _project_or_404(project_id: int, user: User, db: Session) -> BookProject:
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+def _step_status(project: BookProject) -> list[dict]:
+    completed = {
+        "outline": bool(project.outline_text.strip()),
+        "prompts": bool(project.chapter_prompts.strip()),
+        "draft": bool(project.manuscript_text.strip()),
+        "edit": bool(project.edited_text.strip()),
+        "seo": bool(project.seo_description.strip()),
+        "cover": bool(project.cover_brief.strip()),
+        "publish": bool(project.publish_checklist.strip()),
+    }
+    labels = {
+        "outline": "1. Konspekt",
+        "prompts": "2. Prompty rozdziałów",
+        "draft": "3. Draft książki",
+        "edit": "4. Redakcja",
+        "seo": "5. SEO Amazon",
+        "cover": "6. Brief okładki",
+        "publish": "7. Checklist publikacji",
+    }
+    descriptions = {
+        "outline": "Najpierw system układa strukturę książki.",
+        "prompts": "Dopiero z outline tworzymy prompty do rozdziałów.",
+        "draft": "Teraz powstaje pełny draft książki.",
+        "edit": "Po draftcie robimy redakcję i poprawiamy styl.",
+        "seo": "Dopiero po redakcji piszemy opis sprzedażowy.",
+        "cover": "Po SEO system przygotowuje brief na okładkę.",
+        "publish": "Na końcu powstaje checklista publikacji na Amazon.",
+    }
+    order = ["outline", "prompts", "draft", "edit", "seo", "cover", "publish"]
+    steps = []
+    previous_complete = True
+    for key in order:
+        unlocked = previous_complete
+        steps.append({
+            "key": key,
+            "label": labels[key],
+            "description": descriptions[key],
+            "completed": completed[key],
+            "unlocked": unlocked,
+        })
+        previous_complete = previous_complete and completed[key]
+    return steps

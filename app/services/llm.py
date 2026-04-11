@@ -18,15 +18,16 @@ class LLMService:
 
     def generate(self, system_prompt: str, user_prompt: str) -> tuple[str, str]:
         errors: list[str] = []
-        try:
-            return self._call_lm_studio(system_prompt, user_prompt), "lm_studio"
-        except Exception as exc:
-            errors.append(f"lm_studio: {exc}")
-
-        try:
-            return self._call_openrouter(system_prompt, user_prompt), "openrouter"
-        except Exception as exc:
-            errors.append(f"openrouter: {exc}")
+        providers = [
+            ("lm_studio", self._call_lm_studio),
+            ("google_gemini", self._call_google_gemini),
+            ("openrouter", self._call_openrouter),
+        ]
+        for name, handler in providers:
+            try:
+                return handler(system_prompt, user_prompt), name
+            except Exception as exc:
+                errors.append(f"{name}: {exc}")
 
         raise LLMError("All providers failed: " + " | ".join(errors))
 
@@ -56,6 +57,28 @@ class LLMService:
         response = requests.post(url, json=payload, timeout=self.timeout)
         response.raise_for_status()
         return self._extract(response.json())
+
+    def _call_google_gemini(self, system_prompt: str, user_prompt: str) -> str:
+        if not settings.google_api_key:
+            raise LLMError("GOOGLE_API_KEY missing")
+        model = settings.google_model
+        url = settings.google_base_url.rstrip("/") + f"/models/{model}:generateContent?key={settings.google_api_key}"
+        payload = {
+            "systemInstruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+            "generationConfig": {"temperature": 0.7},
+        }
+        response = requests.post(url, json=payload, timeout=self.timeout)
+        response.raise_for_status()
+        data = response.json()
+        candidates = data.get("candidates") or []
+        if not candidates:
+            raise LLMError("No candidates returned")
+        parts = candidates[0].get("content", {}).get("parts", [])
+        text = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict)).strip()
+        if not text:
+            raise LLMError("Empty Gemini response")
+        return text
 
     def _call_openrouter(self, system_prompt: str, user_prompt: str) -> str:
         if not settings.openrouter_api_key:

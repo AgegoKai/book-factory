@@ -1,16 +1,87 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="page-head"><div><div class="eyebrow">Nowy projekt</div><h1>Utwórz książkę</h1></div></div>
-<form class="stack card wide" method="post" action="/projects">
-  <label>Tytuł<input type="text" name="title" required></label>
-  <label>Pomysł / zawartość<textarea name="concept" rows="5" required></textarea></label>
-  <label>Źródła inspiracji / strony<textarea name="inspiration_sources" rows="4"></textarea></label>
-  <div class="split">
-    <label>Ilość stron<input type="number" name="target_pages" value="20" min="1"></label>
-    <label>Ilość słów<input type="number" name="target_words" value="5000" min="500"></label>
+<div class="page-head"><div><div class="eyebrow">Nowy projekt</div><h1>Utwórz książkę krok po kroku</h1><p class="muted">Nie przejdziesz dalej, dopóki nie uzupełnisz tego, co potrzebne.</p></div></div>
+<form id="wizardForm" class="stack card wide wizard" method="post" action="/projects">
+  <div class="wizard-steps">
+    <div class="wizard-step active" data-step="0">1. Tytuł i pomysł</div>
+    <div class="wizard-step" data-step="1">2. Rozmiar książki</div>
+    <div class="wizard-step" data-step="2">3. Styl i język</div>
+    <div class="wizard-step" data-step="3">4. Źródła inspiracji</div>
   </div>
-  <label>Styl / preferencje<textarea name="tone_preferences" rows="4">Dłuższe, naturalne zdania, ludzki styl, bez sztywnego tonu, chyba że temat wymaga krótszych cięć.</textarea></label>
-  <label>Język<input type="text" name="language" value="pl"></label>
-  <button type="submit">Utwórz projekt</button>
+
+  <section class="wizard-panel active" data-step="0">
+    <label>Tytuł<input type="text" name="title" required></label>
+    <label>Pomysł / zawartość<textarea name="concept" rows="6" required></textarea></label>
+    <p class="small muted">Bez tytułu i pomysłu nie da się zrobić konspektu.</p>
+  </section>
+
+  <section class="wizard-panel" data-step="1">
+    <div class="split">
+      <label>Ilość stron<input type="number" name="target_pages" value="20" min="1" required></label>
+      <label>Ilość słów<input type="number" name="target_words" value="5000" min="500" required></label>
+    </div>
+    <p class="small muted">Dla małej książki zwykle 20 stron i około 4k-7k słów.</p>
+  </section>
+
+  <section class="wizard-panel" data-step="2">
+    <label>Styl / preferencje<textarea name="tone_preferences" rows="5" required>Dłuższe, naturalne zdania, ludzki styl, bez sztywnego tonu, chyba że temat wymaga krótszych cięć.</textarea></label>
+    <label>Język<input type="text" name="language" value="pl" required></label>
+  </section>
+
+  <section class="wizard-panel" data-step="3">
+    <label>Źródła inspiracji / linki / notatki<textarea name="inspiration_sources" rows="6" required></textarea></label>
+    <p class="small muted">Tu klient wrzuca strony, książki, konkurencję albo notatki, z których model ma brać kierunek.</p>
+  </section>
+
+  <div class="wizard-actions">
+    <button id="prevBtn" type="button" class="button-link secondary">Wstecz</button>
+    <button id="nextBtn" type="button">Dalej</button>
+    <button id="submitBtn" type="submit" style="display:none;">Utwórz projekt</button>
+  </div>
 </form>
+
+<script>
+(() => {
+  const form = document.getElementById('wizardForm');
+  const panels = [...form.querySelectorAll('.wizard-panel')];
+  const steps = [...form.querySelectorAll('.wizard-step')];
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  let current = 0;
+
+  function panelValid(index) {
+    const inputs = panels[index].querySelectorAll('input, textarea');
+    for (const input of inputs) {
+      if (!input.checkValidity() || !String(input.value || '').trim()) return false;
+    }
+    return true;
+  }
+
+  function render() {
+    panels.forEach((panel, i) => panel.classList.toggle('active', i === current));
+    steps.forEach((step, i) => {
+      step.classList.toggle('active', i === current);
+      step.classList.toggle('done', i < current);
+    });
+    prevBtn.style.visibility = current === 0 ? 'hidden' : 'visible';
+    nextBtn.style.display = current === panels.length - 1 ? 'none' : 'inline-flex';
+    submitBtn.style.display = current === panels.length - 1 ? 'inline-flex' : 'none';
+    nextBtn.disabled = !panelValid(current);
+    submitBtn.disabled = !panelValid(current);
+  }
+
+  form.addEventListener('input', render);
+  nextBtn.addEventListener('click', () => {
+    if (!panelValid(current)) return;
+    current += 1;
+    render();
+  });
+  prevBtn.addEventListener('click', () => {
+    current = Math.max(0, current - 1);
+    render();
+  });
+  render();
+})();
+</script>
 {% endblock %}

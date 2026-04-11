@@ -10,9 +10,12 @@ class Settings(BaseSettings):
     default_admin_password: str = "change-me-now"
     lm_studio_base_url: str = "http://127.0.0.1:1234/v1"
     lm_studio_model: str = "gemma-3-27b-it"
+    google_api_key: str = ""
+    google_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    google_model: str = "gemini-2.5-flash"
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    openrouter_model: str = "google/gemma-3-27b-it:free"
+    openrouter_model: str = "openrouter/free"
     request_timeout_seconds: int = 90
 
     model_config = SettingsConfigDict(
