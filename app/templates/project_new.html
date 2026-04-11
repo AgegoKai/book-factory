@@ -202,9 +202,10 @@
     if (current > 0) { current--; render(); window.scrollTo(0,0); }
   });
 
-  submitBtn.addEventListener('click', () => {
+  document.getElementById('wizardForm').addEventListener('submit', () => {
     submitBtn.innerHTML = '<span class="spinner"></span> Tworzę projekt...';
     submitBtn.disabled = true;
+    nextBtn.disabled = true;
   });
 
   render();
