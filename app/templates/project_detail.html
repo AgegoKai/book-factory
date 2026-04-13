@@ -27,8 +27,8 @@
 <!-- Stats row -->
 <div class="stats-row">
   <div class="stat-item">
-    <div class="stat-value">{{ project.target_pages }}</div>
-    <div class="stat-label">Cel stron</div>
+    <div class="stat-value">{{ project.target_chapters }}</div>
+    <div class="stat-label">Cel rozdziałów</div>
   </div>
   <div class="stat-item">
     <div class="stat-value">{{ "{:,}".format(project.target_words).replace(',', ' ') }}</div>
@@ -68,6 +68,10 @@
   <button class="tab {% if active_tab == 'translations' %}active{% endif %}" data-target="translations" type="button">
     <i data-lucide="languages"></i> Tłumaczenia
     {% if translations %}<span class="badge badge-ok" style="margin-left:4px;font-size:0.65rem;">{{ translations | length }}</span>{% endif %}
+  </button>
+  <button class="tab {% if active_tab == 'humancheck' %}active{% endif %}" data-target="humancheck" type="button">
+    <i data-lucide="scan-search"></i> Human Check
+    {% if human_check %}<span class="badge badge-ok" style="margin-left:4px;font-size:0.65rem;">{{ 'done' }}</span>{% endif %}
   </button>
   <button class="tab {% if active_tab == 'research' %}active{% endif %}" data-target="research" type="button">
     <i data-lucide="search"></i> Research
@@ -144,11 +148,11 @@
         <div style="display:flex;flex-direction:column;gap:8px;font-size:0.78rem;color:var(--text-secondary);">
           <div><span style="color:var(--text-muted);">Język:</span> {{ project.language.upper() }}</div>
           <div><span style="color:var(--text-muted);">Rynek:</span> {{ project.target_market or 'en-US' }}</div>
-          <div><span style="color:var(--text-muted);">Cel:</span> {{ project.target_pages }} str / {{ project.target_words }} słów</div>
+          <div><span style="color:var(--text-muted);">Cel:</span> {{ project.target_chapters }} rozdz. / {{ project.target_words }} słów</div>
           <div><span style="color:var(--text-muted);">Draft:</span> {{ metrics.draft_words }} słów</div>
           <div><span style="color:var(--text-muted);">Outline:</span> {{ metrics.outline_words }} słów</div>
-          {% if project.writing_style %}
-          <div><span style="color:var(--text-muted);">Styl:</span> {{ project.writing_style | truncate(50) }}</div>
+          {% if project_writing_style_labels %}
+          <div><span style="color:var(--text-muted);">Style:</span> {{ project_writing_style_labels | join(', ') | truncate(70) }}</div>
           {% endif %}
           {% if project.target_audience %}
           <div><span style="color:var(--text-muted);">Odbiorca:</span> {{ project.target_audience | truncate(60) }}</div>
@@ -214,22 +218,32 @@
             </select>
           </label>
           <label>
-            Styl pisania
-            <select name="writing_style">
-              <option value="">— bez zmian —</option>
-              <option value="konwersacyjny i przystępny" {% if project.writing_style == 'konwersacyjny i przystępny' %}selected{% endif %}>Konwersacyjny i przystępny</option>
-              <option value="naukowy i precyzyjny" {% if project.writing_style == 'naukowy i precyzyjny' %}selected{% endif %}>Naukowy i precyzyjny</option>
-              <option value="motywacyjny i inspirujący" {% if project.writing_style == 'motywacyjny i inspirujący' %}selected{% endif %}>Motywacyjny i inspirujący</option>
-              <option value="narracyjny storytelling" {% if project.writing_style == 'narracyjny storytelling' %}selected{% endif %}>Narracyjny storytelling</option>
-              <option value="praktyczny how-to" {% if project.writing_style == 'praktyczny how-to' %}selected{% endif %}>Praktyczny how-to</option>
-              <option value="akademicki i formalny" {% if project.writing_style == 'akademicki i formalny' %}selected{% endif %}>Akademicki i formalny</option>
-            </select>
+            Style pisania
+            <details class="multi-select" data-multi-select>
+              <summary>
+                <span class="multi-select-summary" data-multi-select-summary>
+                  {% if project_writing_style_labels %}{{ project_writing_style_labels | join(', ') }}{% else %}Wybierz style pisania{% endif %}
+                </span>
+                <i data-lucide="chevron-down" class="multi-select-caret"></i>
+              </summary>
+              <div class="multi-select-menu">
+                {% for option in writing_style_options %}
+                <label class="multi-select-option">
+                  <input type="checkbox" name="writing_styles" value="{{ option.slug }}" data-multi-select-option-label="{{ option.label }}" {% if option.slug in project_writing_styles %}checked{% endif %}>
+                  <span class="multi-select-option-text">
+                    <span class="multi-select-option-title">{{ option.label }}</span>
+                    <span class="multi-select-option-desc">{{ option.description }}</span>
+                  </span>
+                </label>
+                {% endfor %}
+              </div>
+            </details>
           </label>
         </div>
         <div class="form-row" style="grid-column:1/-1;">
           <label>
-            Cel — liczba stron
-            <input type="number" name="target_pages" value="{{ project.target_pages }}" min="5" max="500">
+            Cel — liczba rozdziałów
+            <input type="number" name="target_chapters" value="{{ project.target_chapters }}" min="3" max="40">
           </label>
           <label>
             Cel — liczba słów
@@ -255,13 +269,13 @@
     <div class="card" style="margin-bottom:20px;">
       <div style="font-size:0.95rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px;">
         <i data-lucide="file-type" style="width:16px;height:16px;color:var(--accent-light);"></i>
-        Ustawienia PDF
+        PDF Customize
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
         <label>
           Czcionka (font family)
           <select name="pdf_font_family">
-            <option value="auto" {% if (project.pdf_font_family or 'auto') == 'auto' %}selected{% endif %}>Auto (pierwsza dostępna)</option>
+            <option value="Georgia" {% if (project.pdf_font_family or 'Georgia') == 'Georgia' %}selected{% endif %}>Georgia (lub serif fallback)</option>
             <option value="DejaVu" {% if project.pdf_font_family == 'DejaVu' %}selected{% endif %}>DejaVu Serif</option>
             <option value="DejaVuSans" {% if project.pdf_font_family == 'DejaVuSans' %}selected{% endif %}>DejaVu Sans</option>
             <option value="Liberation" {% if project.pdf_font_family == 'Liberation' %}selected{% endif %}>Liberation Serif (Times-like)</option>
@@ -272,14 +286,63 @@
           <span class="hint">Zmiana wpływa na cały tekst PDF</span>
         </label>
         <label>
-          Rozmiar nagłówków rozdziałów (pt)
-          <input type="number" name="pdf_heading_size" value="{{ project.pdf_heading_size or 22 }}" min="14" max="48">
-          <span class="hint">Domyślnie 22 pt</span>
+          Format strony
+          <select name="pdf_trim_size">
+            <option value="6x9" {% if (project.pdf_trim_size or '6x9') == '6x9' %}selected{% endif %}>6 × 9 in</option>
+          </select>
+          <span class="hint">Docelowy trim size do druku</span>
         </label>
         <label>
           Rozmiar tekstu podstawowego (pt)
           <input type="number" name="pdf_body_size" value="{{ project.pdf_body_size or 11 }}" min="8" max="18">
           <span class="hint">Domyślnie 11 pt</span>
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px;">
+        <label>
+          Tytuł książki (pt)
+          <input type="number" name="pdf_book_title_size" value="{{ project.pdf_book_title_size or 30 }}" min="18" max="60">
+          <span class="hint">Domyślnie 30 pt</span>
+        </label>
+        <label>
+          Tytuł rozdziału (pt)
+          <input type="number" name="pdf_chapter_title_size" value="{{ project.pdf_chapter_title_size or project.pdf_heading_size or 23 }}" min="14" max="48">
+          <span class="hint">Domyślnie 23 pt</span>
+        </label>
+        <label>
+          Tytuł podrozdziału (pt)
+          <input type="number" name="pdf_subchapter_title_size" value="{{ project.pdf_subchapter_title_size or 17 }}" min="12" max="36">
+          <span class="hint">Domyślnie 17 pt</span>
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px;">
+        <label>
+          Tytuł w PDF
+          <input type="text" name="pdf_title_override" value="{{ project.pdf_title_override or '' }}" placeholder="Puste = użyj tytułu projektu">
+          <span class="hint">Nadpisuje tytuł tylko w eksporcie PDF</span>
+        </label>
+        <label>
+          Podtytuł w PDF
+          <input type="text" name="pdf_subtitle" value="{{ project.pdf_subtitle or '' }}" placeholder="Opcjonalny podtytuł strony tytułowej">
+          <span class="hint">Pojawia się na stronie tytułowej pod głównym tytułem</span>
+        </label>
+        <label>
+          Autor w PDF
+          <input type="text" name="pdf_author_name" value="{{ project.pdf_author_name or '' }}" placeholder="Puste = użyj autora z bio">
+          <span class="hint">Możesz wpisać krótszą wersję nazwy autora</span>
+        </label>
+      </div>
+      <input type="hidden" name="pdf_heading_size" value="{{ project.pdf_chapter_title_size or project.pdf_heading_size or 23 }}">
+      <div style="display:flex;gap:18px;align-items:center;margin-top:14px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:8px;margin:0;">
+          <input type="hidden" name="pdf_include_toc" value="0">
+          <input type="checkbox" name="pdf_include_toc" value="1" {% if project.pdf_include_toc %}checked{% endif %}>
+          <span>Dołącz spis treści</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin:0;">
+          <input type="hidden" name="pdf_show_page_numbers" value="0">
+          <input type="checkbox" name="pdf_show_page_numbers" value="1" {% if project.pdf_show_page_numbers %}checked{% endif %}>
+          <span>Pokaż numery stron</span>
         </label>
       </div>
     </div>
@@ -332,8 +395,15 @@
     <div class="editor-section" style="margin-bottom:24px;">
       <div class="editor-header">
         <span class="editor-title">System Prompt pisarza (używany w Draft i Edit)</span>
-        <span class="editor-meta" style="color:var(--accent-light);">Customizable</span>
+        <span class="editor-meta" style="color:var(--accent-light);">Language-aware fallback</span>
       </div>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">
+        Jeśli to pole jest puste, aplikacja użyje wbudowanego prompta dla języka książki. Aktualny prompt domyślny:
+      </div>
+      <details style="margin-bottom:10px;">
+        <summary style="cursor:pointer;font-size:0.78rem;color:var(--accent-light);">Pokaż domyślny prompt dla {{ project.language.upper() }}</summary>
+        <pre style="white-space:pre-wrap;margin-top:10px;font-size:0.74rem;color:var(--text-secondary);line-height:1.45;">{{ default_system_prompt }}</pre>
+      </details>
       <div class="textarea-wrap">
         <textarea name="custom_system_prompt" rows="10" data-wordcount>{{ project.custom_system_prompt }}</textarea>
         <span class="word-counter">0 słów</span>
@@ -369,17 +439,29 @@
     <input type="hidden" name="concept" value="{{ project.concept }}">
     <input type="hidden" name="language" value="{{ project.language }}">
     <input type="hidden" name="target_market" value="{{ project.target_market }}">
+    {% for style_slug in project_writing_styles %}
+    <input type="hidden" name="writing_styles" value="{{ style_slug }}">
+    {% endfor %}
     <input type="hidden" name="writing_style" value="{{ project.writing_style }}">
     <input type="hidden" name="author_bio" value="{{ project.author_bio }}">
     <input type="hidden" name="target_audience" value="{{ project.target_audience }}">
     <input type="hidden" name="tone_preferences" value="{{ project.tone_preferences }}">
     <input type="hidden" name="emotions_to_convey" value="{{ project.emotions_to_convey }}">
     <input type="hidden" name="knowledge_to_share" value="{{ project.knowledge_to_share }}">
-    <input type="hidden" name="target_pages" value="{{ project.target_pages }}">
+    <input type="hidden" name="target_chapters" value="{{ project.target_chapters }}">
     <input type="hidden" name="target_words" value="{{ project.target_words }}">
-    <input type="hidden" name="pdf_font_family" value="{{ project.pdf_font_family or 'auto' }}">
-    <input type="hidden" name="pdf_heading_size" value="{{ project.pdf_heading_size or 22 }}">
+    <input type="hidden" name="pdf_font_family" value="{{ project.pdf_font_family or 'Georgia' }}">
+    <input type="hidden" name="pdf_trim_size" value="{{ project.pdf_trim_size or '6x9' }}">
+    <input type="hidden" name="pdf_heading_size" value="{{ project.pdf_heading_size or 23 }}">
     <input type="hidden" name="pdf_body_size" value="{{ project.pdf_body_size or 11 }}">
+    <input type="hidden" name="pdf_book_title_size" value="{{ project.pdf_book_title_size or 30 }}">
+    <input type="hidden" name="pdf_chapter_title_size" value="{{ project.pdf_chapter_title_size or 23 }}">
+    <input type="hidden" name="pdf_subchapter_title_size" value="{{ project.pdf_subchapter_title_size or 17 }}">
+    <input type="hidden" name="pdf_title_override" value="{{ project.pdf_title_override or '' }}">
+    <input type="hidden" name="pdf_subtitle" value="{{ project.pdf_subtitle or '' }}">
+    <input type="hidden" name="pdf_author_name" value="{{ project.pdf_author_name or '' }}">
+    <input type="hidden" name="pdf_include_toc" value="{{ 1 if project.pdf_include_toc else 0 }}">
+    <input type="hidden" name="pdf_show_page_numbers" value="{{ 1 if project.pdf_show_page_numbers else 0 }}">
     <input type="hidden" name="outline_text" value="{{ project.outline_text }}">
     <input type="hidden" name="chapter_prompts" value="{{ project.chapter_prompts }}">
     <input type="hidden" name="manuscript_text" value="{{ project.manuscript_text }}">
@@ -573,6 +655,100 @@
   </div>
 </div>
 
+<!-- =================== TAB: Human Check =================== -->
+<div class="tab-panel {% if active_tab == 'humancheck' %}active{% endif %}" id="tab-humancheck">
+  <div style="display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;">
+    <div class="card">
+      <div style="font-size:0.95rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+        <i data-lucide="scan-search" style="width:17px;height:17px;color:var(--emerald);"></i>
+        Human / AI Verification
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:14px;">
+        Sprawdza tekst przez Copyleaks i pokazuje udział treści sklasyfikowanej jako human-written vs AI-generated.
+      </p>
+      {% if human_check_error %}
+      <div class="alert alert-error" style="margin-bottom:14px;">{{ human_check_error }}</div>
+      {% elif human_check_notice %}
+      <div class="alert alert-success" style="margin-bottom:14px;">Weryfikacja została wykonana.</div>
+      {% endif %}
+      <form method="post" action="/projects/{{ project.id }}/human-check" class="stack">
+        <label>
+          Źródło tekstu
+          <select name="source" id="humanCheckSource">
+            <option value="edited">Zredagowany manuskrypt</option>
+            <option value="manuscript">Draft książki</option>
+            <option value="seo">Opis SEO Amazon</option>
+            <option value="custom">Własny fragment</option>
+          </select>
+        </label>
+        <label id="humanCheckCustomWrap" style="display:none;">
+          Własny tekst
+          <textarea name="custom_text" rows="10" placeholder="Wklej własny fragment do analizy (255-25 000 znaków)."></textarea>
+        </label>
+        <button type="submit">
+          <i data-lucide="shield-check"></i> Uruchom Human Check
+        </button>
+      </form>
+      <div style="font-size:0.76rem;color:var(--text-muted);margin-top:12px;">
+        Detektory AI są heurystyczne. Wynik pomaga w ocenie, ale nie jest dowodem absolutnym.
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:0.95rem;font-weight:700;margin-bottom:12px;">Wynik</div>
+      {% if human_check %}
+      <div style="display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:12px;margin-bottom:18px;">
+        <div class="stat-item">
+          <div class="stat-value" style="font-size:1.15rem;color:var(--emerald);">{{ (human_check.human_score * 100) | round(1) }}%</div>
+          <div class="stat-label">Human</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" style="font-size:1.15rem;color:var(--rose);">{{ (human_check.ai_score * 100) | round(1) }}%</div>
+          <div class="stat-label">AI</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" style="font-size:1rem;">{{ human_check.total_words or '—' }}</div>
+          <div class="stat-label">Słów</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" style="font-size:0.82rem;">{{ human_check.source or 'edited' }}</div>
+          <div class="stat-label">Źródło</div>
+        </div>
+      </div>
+      <div style="font-size:0.78rem;color:var(--text-secondary);display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;">
+        <span>Provider: <strong>{{ human_check.provider }}</strong></span>
+        <span>Model: <strong>{{ human_check.model_version or '—' }}</strong></span>
+        <span>Scan ID: <strong>{{ human_check.scan_id or '—' }}</strong></span>
+        <span>Checked: <strong>{{ human_check.checked_at or '—' }}</strong></span>
+      </div>
+      {% if human_check.results %}
+      <div class="editor-section">
+        <div class="editor-header">
+          <span class="editor-title">Segmenty wykryte przez API</span>
+          <span class="editor-meta">{{ human_check.results | length }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          {% for item in human_check.results[:8] %}
+          <div style="border:1px solid var(--border);border-radius:10px;padding:12px;background:rgba(255,255,255,0.02);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span class="badge badge-{{ 'ok' if item.classification == 1 else 'missing' }}">{{ 'Human' if item.classification == 1 else 'AI' }}</span>
+              <span style="font-size:0.75rem;color:var(--text-muted);">confidence: {{ ((item.probability or 0) * 100) | round(1) }}%</span>
+            </div>
+            <pre style="margin:0;white-space:pre-wrap;font-size:0.75rem;color:var(--text-secondary);">{{ item | tojson(indent=2) }}</pre>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% else %}
+      <p style="font-size:0.8rem;color:var(--text-muted);font-style:italic;">
+        Brak wyniku. Skonfiguruj Human Check w <a href="/settings" style="color:var(--accent-light);">Ustawieniach</a> i uruchom analizę.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
 <!-- =================== TAB: Research =================== -->
 <div class="tab-panel {% if active_tab == 'research' %}active{% endif %}" id="tab-research">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
@@ -671,6 +847,15 @@
 
   if (window.location.hash === '#research') {
     document.querySelector('[data-target="research"]').click();
+  }
+  const hcSource = document.getElementById('humanCheckSource');
+  const hcCustomWrap = document.getElementById('humanCheckCustomWrap');
+  if (hcSource && hcCustomWrap) {
+    const syncHumanCheckSource = () => {
+      hcCustomWrap.style.display = hcSource.value === 'custom' ? 'block' : 'none';
+    };
+    hcSource.addEventListener('change', syncHumanCheckSource);
+    syncHumanCheckSource();
   }
 
   // ── Progress bar ──────────────────────────────────────────────────────────────
@@ -792,6 +977,20 @@
     const btn = document.getElementById('saveBtn');
     btn.innerHTML = '<span class="spinner"></span> Zapisuję...';
     btn.disabled = true;
+  });
+
+  // Multi-select summaries
+  document.querySelectorAll('[data-multi-select]').forEach(root => {
+    const summary = root.querySelector('[data-multi-select-summary]');
+    const refresh = () => {
+      const selected = [...root.querySelectorAll('input[type="checkbox"]:checked')]
+        .map(input => input.dataset.multiSelectOptionLabel || input.value);
+      if (summary) summary.textContent = selected.length ? selected.join(', ') : 'Wybierz style pisania';
+    };
+    root.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.addEventListener('change', refresh);
+    });
+    refresh();
   });
 
   // Ideas loading

@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "openrouter/auto"
+    copyleaks_email: str = ""
+    copyleaks_api_key: str = ""
+    copyleaks_identity_base_url: str = "https://id.copyleaks.com/v3"
+    copyleaks_api_base_url: str = "https://api.copyleaks.com/v2"
+    copyleaks_sandbox: bool = False
     # Public URL of your app (OpenRouter attribution); some proxies require a real https URL
     openrouter_http_referer: str = "https://localhost"
     # Max completion tokens for OpenAI-compatible providers (chapters, SEO); OpenRouter caps per model

@@ -76,14 +76,14 @@
       <div class="stack">
         <div class="form-row">
           <label>
-            Liczba stron
-            <input type="number" name="target_pages" value="20" min="5" max="500" required>
-            <span class="hint">Zwykle 20-50 str. dla tytułu krótszego</span>
+            Liczba rozdziałów
+            <input type="number" name="target_chapters" value="10" min="3" max="40" required>
+            <span class="hint">To steruje strukturą książki i liczbą promptów</span>
           </label>
           <label>
             Liczba słów
-            <input type="number" name="target_words" value="12000" min="1000" max="200000" required>
-            <span class="hint">12k-15k = ok. 20 stron</span>
+            <input type="number" name="target_words" value="18000" min="3000" max="200000" required>
+            <span class="hint">System rozdzieli budżet słów na rozdziały i bloki promptów</span>
           </label>
         </div>
 
@@ -124,7 +124,7 @@
             <label>
               Czcionka PDF
               <select name="pdf_font_family">
-                <option value="auto" selected>Auto (pierwsza dostępna)</option>
+                <option value="Georgia" selected>Georgia (lub serif fallback)</option>
                 <option value="DejaVu">DejaVu Serif</option>
                 <option value="DejaVuSans">DejaVu Sans</option>
                 <option value="Liberation">Liberation Serif (Times-like)</option>
@@ -135,9 +135,11 @@
               <span class="hint">Można zmienić potem w projekcie</span>
             </label>
             <label>
-              Rozmiar nagłówka (pt)
-              <input type="number" name="pdf_heading_size" value="22" min="14" max="48">
-              <span class="hint">Tytuły rozdziałów, domyślnie 22</span>
+              Format strony
+              <select name="pdf_trim_size">
+                <option value="6x9" selected>6 × 9 in</option>
+              </select>
+              <span class="hint">Domyślny format druku trade paperback</span>
             </label>
             <label>
               Rozmiar tekstu (pt)
@@ -145,6 +147,21 @@
               <span class="hint">Tekst akapitów, domyślnie 11</span>
             </label>
           </div>
+          <div class="form-row" style="margin-top:12px;">
+            <label>
+              Tytuł książki (pt)
+              <input type="number" name="pdf_book_title_size" value="30" min="18" max="60">
+            </label>
+            <label>
+              Tytuł rozdziału (pt)
+              <input type="number" name="pdf_chapter_title_size" value="23" min="14" max="48">
+            </label>
+            <label>
+              Tytuł podrozdziału (pt)
+              <input type="number" name="pdf_subchapter_title_size" value="17" min="12" max="36">
+            </label>
+          </div>
+          <input type="hidden" name="pdf_heading_size" value="23">
         </div>
 
         <div class="alert-info alert" style="font-size:0.8rem;">
@@ -162,17 +179,24 @@
       <div class="stack">
         <label>
           Styl pisania
-          <select name="writing_style">
-            <option value="">— wybierz styl —</option>
-            <option value="konwersacyjny i przystępny">Konwersacyjny i przystępny — jak rozmowa z przyjacielem</option>
-            <option value="naukowy i precyzyjny">Naukowy i precyzyjny — fakty, dane, odsyłacze</option>
-            <option value="motywacyjny i inspirujący">Motywacyjny i inspirujący — call-to-action, storytelling</option>
-            <option value="narracyjny storytelling">Narracyjny storytelling — opowieści, metafory, przykłady</option>
-            <option value="praktyczny how-to">Praktyczny how-to — kroki, listy, ćwiczenia</option>
-            <option value="humorystyczny i lekki">Humorystyczny i lekki — anegdoty, dowcip, dystans</option>
-            <option value="akademicki i formalny">Akademicki i formalny — język ekspercki, bez uproszczeń</option>
-          </select>
-          <span class="hint">Decyduje o tonie całej książki i systemu prompta</span>
+          <details class="multi-select" data-multi-select>
+            <summary>
+              <span class="multi-select-summary" data-multi-select-summary>Konwersacyjny i przystępny, Praktyczny how-to</span>
+              <i data-lucide="chevron-down" class="multi-select-caret"></i>
+            </summary>
+            <div class="multi-select-menu">
+              {% for option in writing_style_options %}
+              <label class="multi-select-option">
+                <input type="checkbox" name="writing_styles" value="{{ option.slug }}" data-multi-select-option-label="{{ option.label }}" {% if option.slug in ['conversational', 'practical'] %}checked{% endif %}>
+                <span class="multi-select-option-text">
+                  <span class="multi-select-option-title">{{ option.label }}</span>
+                  <span class="multi-select-option-desc">{{ option.description }}</span>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+          </details>
+          <span class="hint">Możesz mieszać style. Pipeline potraktuje je jako checklistę reguł, nie pojedynczy preset.</span>
         </label>
         <label>
           Preferencje stylu / tonu (szczegóły)
@@ -230,16 +254,20 @@
       </h2>
       <div class="stack">
         <div class="alert-info alert" style="font-size:0.79rem;">
-          Ten prompt jest używany do kroków <strong>Draft</strong> i <strong>Redakcja</strong>. Możesz go dostosować lub zostawić domyślny. Zmiany możesz robić też po stworzeniu projektu w zakładce Edytor.
+          Ten prompt jest używany do kroków <strong>Draft</strong> i <strong>Redakcja</strong>. Jeśli zostawisz pole puste, aplikacja użyje wbudowanego prompta dopasowanego do języka książki.
         </div>
         <label>
-          System prompt (opcjonalnie — zostaw puste dla domyślnego)
+          System prompt (opcjonalnie)
           <div class="textarea-wrap">
-            <textarea name="custom_system_prompt" rows="12" data-wordcount
-              placeholder="Zostaw puste aby użyć wbudowanego systemu prompta pisarza prozy wysokiej jakości...">{{ default_system_prompt }}</textarea>
+            <textarea name="custom_system_prompt" rows="12" data-wordcount id="customSystemPrompt"
+              placeholder="Zostaw puste, aby użyć wbudowanego prompta dopasowanego do języka książki."></textarea>
             <span class="word-counter">0 słów</span>
           </div>
         </label>
+        <details class="card" style="background:rgba(255,255,255,0.03);border-style:dashed;">
+          <summary style="cursor:pointer;font-size:0.82rem;color:var(--text-secondary);">Podgląd domyślnego prompta dla wybranego języka</summary>
+          <pre id="defaultPromptPreview" style="white-space:pre-wrap;margin-top:12px;font-size:0.76rem;color:var(--text-secondary);line-height:1.5;">{{ default_system_prompt }}</pre>
+        </details>
       </div>
     </div>
 
@@ -270,7 +298,32 @@
   const nextBtn = document.getElementById('nextBtn');
   const submitBtn = document.getElementById('submitBtn');
   const counter = document.getElementById('stepCounter');
+  const languageSelect = document.querySelector('select[name="language"]');
+  const defaultPromptPreview = document.getElementById('defaultPromptPreview');
+  const defaultPrompts = {{ default_system_prompts | tojson }};
+  const multiSelects = [...document.querySelectorAll('[data-multi-select]')];
   let current = 0;
+
+  function updateMultiSelectSummary(root) {
+    const summary = root.querySelector('[data-multi-select-summary]');
+    if (!summary) return;
+    const selected = [...root.querySelectorAll('input[type="checkbox"]:checked')]
+      .map(input => input.dataset.multiSelectOptionLabel || input.value);
+    summary.textContent = selected.length ? selected.join(', ') : 'Wybierz style pisania';
+  }
+
+  function promptKeyForLanguage(value) {
+    const raw = String(value || '').toLowerCase();
+    if (raw.startsWith('pl')) return 'pl';
+    if (raw.startsWith('de')) return 'de';
+    return 'en';
+  }
+
+  function updatePromptPreview() {
+    if (!languageSelect || !defaultPromptPreview) return;
+    const prompt = defaultPrompts[promptKeyForLanguage(languageSelect.value)] || defaultPrompts.en || '';
+    defaultPromptPreview.textContent = prompt;
+  }
 
   function panelValid(index) {
     const inputs = panels[index].querySelectorAll('input[required], textarea[required]');
@@ -302,6 +355,12 @@
   }
 
   document.getElementById('wizardForm').addEventListener('input', render);
+  multiSelects.forEach(root => {
+    root.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.addEventListener('change', () => updateMultiSelectSummary(root));
+    });
+    updateMultiSelectSummary(root);
+  });
 
   nextBtn.addEventListener('click', () => {
     if (!panelValid(current)) return;
@@ -310,6 +369,7 @@
   prevBtn.addEventListener('click', () => {
     if (current > 0) { current--; render(); window.scrollTo(0,0); }
   });
+  if (languageSelect) languageSelect.addEventListener('change', updatePromptPreview);
 
   document.getElementById('wizardForm').addEventListener('submit', () => {
     submitBtn.innerHTML = '<span class="spinner"></span> Tworzę projekt...';
@@ -317,6 +377,7 @@
     nextBtn.disabled = true;
   });
 
+  updatePromptPreview();
   render();
 })();
 if (typeof lucide !== 'undefined') lucide.createIcons();

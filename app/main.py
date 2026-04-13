@@ -4,6 +4,7 @@ import json
 import unicodedata
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -16,11 +17,23 @@ from .bootstrap import ensure_default_admin, init_db, migrate_db
 from .config import settings
 from .database import SessionLocal, get_db
 from .deps import _LoginRedirect, current_user
-from .models import BookProject, User, UserSettings
+from .models import (
+    BOOK_WRITER_DEFAULT_PROMPTS,
+    BookProject,
+    User,
+    UserSettings,
+    WRITING_STYLE_PRESETS,
+    deserialize_writing_styles,
+    get_book_writer_default_prompt,
+    primary_writing_style,
+    serialize_writing_styles,
+    writing_style_labels,
+)
 from .schemas import ProjectCreate
 from .security import verify_password
 from .services.book_pipeline import book_pipeline_service
 from .services.exporter import export_service
+from .services.human_check import HumanCheckConfig, HumanCheckError, human_check_service
 from .session import SESSION_COOKIE, sign_session
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -104,11 +117,15 @@ def root(
 
 @app.get("/projects/new", response_class=HTMLResponse)
 def new_project_page(request: Request, user: User = Depends(current_user)):
-    from .models import BOOK_WRITER_DEFAULT_PROMPT
     return templates.TemplateResponse(
         request,
         "project_new.html",
-        {"user": user, "default_system_prompt": BOOK_WRITER_DEFAULT_PROMPT},
+        {
+            "user": user,
+            "default_system_prompt": get_book_writer_default_prompt("pl"),
+            "default_system_prompts": BOOK_WRITER_DEFAULT_PROMPTS,
+            "writing_style_options": WRITING_STYLE_PRESETS,
+        },
     )
 
 
@@ -118,20 +135,30 @@ def create_project(
     title: str = Form(...),
     concept: str = Form(...),
     inspiration_sources: str = Form(""),
-    target_pages: int = Form(20),
+    target_chapters: int = Form(10),
     target_words: int = Form(5000),
     tone_preferences: str = Form("Dłuższe, naturalne zdania, ludzki styl."),
     language: str = Form("pl"),
     custom_system_prompt: str = Form(""),
     writing_style: str = Form(""),
+    writing_styles: list[str] = Form([]),
     target_market: str = Form("en-US"),
     author_bio: str = Form(""),
     emotions_to_convey: str = Form(""),
     knowledge_to_share: str = Form(""),
     target_audience: str = Form(""),
-    pdf_font_family: str = Form("auto"),
+    pdf_font_family: str = Form("Georgia"),
+    pdf_trim_size: str = Form("6x9"),
     pdf_heading_size: int = Form(22),
     pdf_body_size: int = Form(11),
+    pdf_book_title_size: int = Form(30),
+    pdf_chapter_title_size: int = Form(23),
+    pdf_subchapter_title_size: int = Form(17),
+    pdf_title_override: str = Form(""),
+    pdf_subtitle: str = Form(""),
+    pdf_author_name: str = Form(""),
+    pdf_include_toc: str = Form("1"),
+    pdf_show_page_numbers: str = Form("1"),
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
@@ -139,22 +166,35 @@ def create_project(
         title=title,
         concept=concept,
         inspiration_sources=inspiration_sources,
-        target_pages=target_pages,
+        target_chapters=target_chapters,
         target_words=target_words,
         tone_preferences=tone_preferences,
         language=language,
         custom_system_prompt=custom_system_prompt,
-        writing_style=writing_style,
+        writing_style=primary_writing_style("", writing_style),
+        writing_styles=deserialize_writing_styles(serialize_writing_styles(writing_styles, writing_style)),
         target_market=target_market,
         author_bio=author_bio,
         emotions_to_convey=emotions_to_convey,
         knowledge_to_share=knowledge_to_share,
         target_audience=target_audience,
         pdf_font_family=pdf_font_family,
+        pdf_trim_size=pdf_trim_size,
         pdf_heading_size=pdf_heading_size,
         pdf_body_size=pdf_body_size,
+        pdf_book_title_size=pdf_book_title_size,
+        pdf_chapter_title_size=pdf_chapter_title_size,
+        pdf_subchapter_title_size=pdf_subchapter_title_size,
+        pdf_title_override=pdf_title_override,
+        pdf_subtitle=pdf_subtitle,
+        pdf_author_name=pdf_author_name,
+        pdf_include_toc=_as_bool(pdf_include_toc, default=True),
+        pdf_show_page_numbers=_as_bool(pdf_show_page_numbers, default=True),
     )
-    project = BookProject(owner_id=user.id, **payload.model_dump())
+    data = payload.model_dump()
+    data["writing_styles"] = serialize_writing_styles(data["writing_styles"], data["writing_style"])
+    data["writing_style"] = primary_writing_style(data["writing_styles"], data["writing_style"])
+    project = BookProject(owner_id=user.id, **data)
     db.add(project)
     db.commit()
     db.refresh(project)
@@ -177,12 +217,19 @@ def project_detail(
     }
     steps = _step_status(project)
     providers = _build_providers_status(user, db)
+    project_style_labels = writing_style_labels(project.writing_styles, project.writing_style)
     translations: dict = {}
+    human_check: dict = {}
     if project.translations:
         try:
             translations = json.loads(project.translations)
         except Exception:
             translations = {}
+    if project.human_check_result:
+        try:
+            human_check = json.loads(project.human_check_result)
+        except Exception:
+            human_check = {}
     active_tab = request.query_params.get("tab", "pipeline")
     return templates.TemplateResponse(
         request,
@@ -194,8 +241,15 @@ def project_detail(
             "steps": steps,
             "providers": providers,
             "translations": translations,
+            "human_check": human_check,
             "active_tab": active_tab,
             "llm_routing_label": _llm_routing_label(_get_user_settings(user, db)),
+            "default_system_prompt": get_book_writer_default_prompt(project.language),
+            "human_check_error": request.query_params.get("human_check_error", ""),
+            "human_check_notice": request.query_params.get("human_check_notice", ""),
+            "writing_style_options": WRITING_STYLE_PRESETS,
+            "project_writing_styles": deserialize_writing_styles(project.writing_styles, project.writing_style),
+            "project_writing_style_labels": project_style_labels,
         },
     )
 
@@ -209,16 +263,26 @@ def save_project_sections(
     language: str = Form(""),
     target_market: str = Form(""),
     writing_style: str = Form(""),
+    writing_styles: list[str] = Form([]),
     author_bio: str = Form(""),
     target_audience: str = Form(""),
     tone_preferences: str = Form(""),
     emotions_to_convey: str = Form(""),
     knowledge_to_share: str = Form(""),
-    target_pages: int = Form(0),
+    target_chapters: int = Form(0),
     target_words: int = Form(0),
     pdf_font_family: str = Form(""),
+    pdf_trim_size: str = Form(""),
     pdf_heading_size: int = Form(0),
     pdf_body_size: int = Form(0),
+    pdf_book_title_size: int = Form(0),
+    pdf_chapter_title_size: int = Form(0),
+    pdf_subchapter_title_size: int = Form(0),
+    pdf_title_override: str = Form(""),
+    pdf_subtitle: str = Form(""),
+    pdf_author_name: str = Form(""),
+    pdf_include_toc: str = Form(""),
+    pdf_show_page_numbers: str = Form(""),
     # Content fields
     outline_text: str = Form(""),
     chapter_prompts: str = Form(""),
@@ -243,8 +307,9 @@ def save_project_sections(
         project.language = language.strip()
     if target_market.strip():
         project.target_market = target_market.strip()
-    if writing_style.strip():
-        project.writing_style = writing_style.strip()
+    selected_styles = deserialize_writing_styles(serialize_writing_styles(writing_styles, writing_style))
+    project.writing_styles = serialize_writing_styles(selected_styles)
+    project.writing_style = primary_writing_style(project.writing_styles)
     if author_bio.strip():
         project.author_bio = author_bio.strip()
     if target_audience.strip():
@@ -255,16 +320,29 @@ def save_project_sections(
         project.emotions_to_convey = emotions_to_convey.strip()
     if knowledge_to_share.strip():
         project.knowledge_to_share = knowledge_to_share.strip()
-    if target_pages > 0:
-        project.target_pages = target_pages
+    if target_chapters > 0:
+        project.target_chapters = target_chapters
     if target_words > 0:
         project.target_words = target_words
     if pdf_font_family.strip():
         project.pdf_font_family = pdf_font_family.strip()
+    if pdf_trim_size.strip():
+        project.pdf_trim_size = pdf_trim_size.strip()
     if pdf_heading_size > 0:
         project.pdf_heading_size = pdf_heading_size
     if pdf_body_size > 0:
         project.pdf_body_size = pdf_body_size
+    if pdf_book_title_size > 0:
+        project.pdf_book_title_size = pdf_book_title_size
+    if pdf_chapter_title_size > 0:
+        project.pdf_chapter_title_size = pdf_chapter_title_size
+    if pdf_subchapter_title_size > 0:
+        project.pdf_subchapter_title_size = pdf_subchapter_title_size
+    project.pdf_title_override = pdf_title_override.strip()
+    project.pdf_subtitle = pdf_subtitle.strip()
+    project.pdf_author_name = pdf_author_name.strip()
+    project.pdf_include_toc = _as_bool(pdf_include_toc, default=False)
+    project.pdf_show_page_numbers = _as_bool(pdf_show_page_numbers, default=False)
     # Content fields (always overwrite — can be cleared by user)
     project.outline_text = outline_text
     project.chapter_prompts = chapter_prompts
@@ -408,6 +486,39 @@ def translate_project(
     )
 
 
+@app.post("/projects/{project_id}/human-check")
+def run_human_check(
+    project_id: int,
+    source: str = Form("edited"),
+    custom_text: str = Form(""),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    project = _project_or_404(project_id, user, db)
+    user_settings = _get_user_settings(user, db)
+    text = _human_check_text_for_source(project, source, custom_text)
+    cfg = HumanCheckConfig(
+        email=(user_settings.copyleaks_email if user_settings else "") or "",
+        api_key=(user_settings.copyleaks_api_key if user_settings else "") or "",
+    )
+    try:
+        result = human_check_service.analyze_text(text, language=project.language, cfg=cfg)
+    except HumanCheckError as exc:
+        return RedirectResponse(
+            url=f"/projects/{project.id}?tab=humancheck&human_check_error={_url_query_escape(str(exc))}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    result["source"] = source
+    project.human_check_result = json.dumps(result, ensure_ascii=False)
+    db.add(project)
+    db.commit()
+    return RedirectResponse(
+        url=f"/projects/{project.id}?tab=humancheck&human_check_notice=1",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 # ---------------------------------------------------------------- export
 
 @app.get("/projects/{project_id}/export/docx")
@@ -475,6 +586,8 @@ def save_settings(
     google_model: str = Form(""),
     openrouter_api_key: str = Form(""),
     openrouter_model: str = Form(""),
+    copyleaks_email: str = Form(""),
+    copyleaks_api_key: str = Form(""),
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
@@ -494,6 +607,8 @@ def save_settings(
     user_settings.google_model = google_model.strip()
     user_settings.openrouter_api_key = openrouter_api_key.strip()
     user_settings.openrouter_model = openrouter_model.strip()
+    user_settings.copyleaks_email = copyleaks_email.strip()
+    user_settings.copyleaks_api_key = copyleaks_api_key.strip()
     db.commit()
     return RedirectResponse(url="/settings?saved=1", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -571,6 +686,23 @@ async def test_single_provider(
             text = llm_service._call_openrouter(SYS, USR, cfg)
             return {"ok": True, "provider": "openrouter", "response": text[:100]}
 
+        elif provider == "copyleaks":
+            hc_cfg = HumanCheckConfig(
+                email=key or (user_settings.copyleaks_email if user_settings else "") or settings.copyleaks_email,
+                api_key=mdl or (user_settings.copyleaks_api_key if user_settings else "") or settings.copyleaks_api_key,
+            )
+            result = human_check_service.analyze_text(
+                "This is a short human-written sample paragraph designed to test the AI detector integration. "
+                "It contains enough content to pass the minimum length requirements and should return a valid score.",
+                language="en",
+                cfg=hc_cfg,
+            )
+            return {
+                "ok": True,
+                "provider": "copyleaks",
+                "response": f"human={result['human_score']:.0%}, ai={result['ai_score']:.0%}",
+            }
+
         else:
             return {"ok": False, "error": f"Nieznany provider: {provider}"}
 
@@ -602,6 +734,34 @@ def _safe_ascii_filename(title: str, max_len: int = 60) -> str:
     if not safe:
         safe = "book"
     return safe[:max_len]
+
+
+def _as_bool(value: str | None, *, default: bool) -> bool:
+    raw = (value or "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _url_query_escape(value: str) -> str:
+    return quote_plus(value)
+
+
+def _human_check_text_for_source(project: BookProject, source: str, custom_text: str) -> str:
+    src = (source or "edited").strip().lower()
+    if src == "custom":
+        text = custom_text
+    elif src == "seo":
+        text = project.seo_description or ""
+    elif src == "manuscript":
+        text = project.manuscript_text or ""
+    else:
+        text = project.edited_text or project.manuscript_text or ""
+    text = (text or "").strip()
+    if not text:
+        raise HumanCheckError("No text available for human check. Add manuscript text first.")
+    return text
+
 
 def _project_or_404(project_id: int, user: User, db: Session) -> BookProject:
     project = (
@@ -640,6 +800,8 @@ def _build_providers_status(user: User, db: Session) -> list[dict]:
     lm_key = (us.lm_studio_api_key if us else "") or settings.lm_studio_api_key
     g_key = (us.google_api_key if us else "") or settings.google_api_key
     or_key = (us.openrouter_api_key if us else "") or settings.openrouter_api_key
+    cp_email = (us.copyleaks_email if us else "") or settings.copyleaks_email
+    cp_key = (us.copyleaks_api_key if us else "") or settings.copyleaks_api_key
     lm_url = (us.lm_studio_base_url if us else "") or settings.lm_studio_base_url
 
     return [
@@ -663,6 +825,13 @@ def _build_providers_status(user: User, db: Session) -> list[dict]:
             "summary": "Router darmowych modeli. Ostatni fallback bez GPU.",
             "status": "configured" if or_key else "missing",
             "detail": "Klucz skonfigurowany" if or_key else "Brak klucza API",
+        },
+        {
+            "name": "Human Check",
+            "icon": "scan-search",
+            "summary": "Detekcja AI/human dla gotowego tekstu książki.",
+            "status": "configured" if (cp_email and cp_key) else "missing",
+            "detail": "Copyleaks skonfigurowany" if (cp_email and cp_key) else "Brak email/API key Copyleaks",
         },
     ]
 

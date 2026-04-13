@@ -284,6 +284,47 @@
     </div>
   </div>
 
+  <!-- Human Check / Copyleaks -->
+  <div class="settings-section">
+    <div class="settings-section-header">
+      <div class="settings-section-icon" style="background:color-mix(in srgb, #22c55e 18%, transparent);">
+        <i data-lucide="scan-search" style="width:18px;height:18px;color:#22c55e;"></i>
+      </div>
+      <div>
+        <div class="settings-section-title">Human Check</div>
+        <div class="settings-section-sub">Copyleaks AI detector. Zwraca udział tekstu ocenionego jako human vs AI.</div>
+      </div>
+      <span class="badge badge-{{ 'ok' if s and s.copyleaks_email and s.copyleaks_api_key else 'missing' }}" style="margin-left:auto;" id="badge-copyleaks">
+        {{ 'Skonfigurowane' if s and s.copyleaks_email and s.copyleaks_api_key else 'Brak danych' }}
+      </span>
+    </div>
+    <div class="settings-section-body">
+      <div class="grid-2col">
+        <label>
+          Copyleaks Email
+          <input type="email" name="copyleaks_email" id="copyleaks_email"
+            value="{{ s.copyleaks_email if s else '' }}"
+            placeholder="you@example.com">
+          <span class="hint">Email konta Copyleaks używany do logowania API</span>
+        </label>
+        <label>
+          Copyleaks API Key
+          <input type="password" name="copyleaks_api_key" id="copyleaks_api_key"
+            value="{{ s.copyleaks_api_key if s else '' }}"
+            placeholder="00000000-0000-0000-0000-000000000000">
+          <span class="hint"><a href="https://docs.copyleaks.com/using-the-apis/authentication/" target="_blank" style="color:var(--accent-light);">Dokumentacja autoryzacji →</a></span>
+        </label>
+      </div>
+      <div class="provider-test-row">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="testProvider('copyleaks')">
+          <i data-lucide="radio" style="width:13px;height:13px;"></i> Testuj Human Check
+        </button>
+        <span class="provider-test-result" id="result-copyleaks"></span>
+      </div>
+      <div class="hint" style="margin-top:10px;">Detektory AI są heurystyczne. Wynik traktuj jako sygnał pomocniczy, nie dowód absolutny.</div>
+    </div>
+  </div>
+
   <div class="actions-row" style="padding-top:8px;">
     <button type="submit" id="saveSettingsBtn">
       <i data-lucide="save"></i> Zapisz ustawienia
@@ -447,6 +488,10 @@
         api_key: document.getElementById('openrouter_api_key')?.value || '',
         model:   document.getElementById('openrouterModelInput')?.value || '',
       },
+      copyleaks: {
+        api_key: document.getElementById('copyleaks_email')?.value || '',
+        model:   document.getElementById('copyleaks_api_key')?.value || '',
+      },
     };
 
     const f = fields[provider] || {};
@@ -485,6 +530,8 @@
     const m = msg.toLowerCase();
     if (m.includes('api_key missing') || m.includes('missing')) {
       hint = 'Brak klucza API — wpisz go w polu powyżej.';
+    } else if (m.includes('email and api key are required')) {
+      hint = 'Uzupełnij email oraz API key Copyleaks.';
     } else if (m.includes('401') || m.includes('unauthorized') || m.includes('invalid_api_key')) {
       hint = 'Klucz API nieprawidłowy — sprawdź czy skopiowałeś go poprawnie.';
     } else if (m.includes('402') || m.includes('insufficient') || m.includes('credit') || m.includes('saldo')) {

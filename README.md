@@ -154,6 +154,11 @@ docker compose up --build
 ```
 
 Obraz instaluje **fontconfig** oraz pakiety czcionek potrzebne do PDF z Unicode.
+Przy każdym starcie kontenera entrypoint automatycznie:
+- zapisuje timestamped backup SQLite do `./data/backups/`
+- aktualizuje `./data/book_factory.restore.sqlite`
+
+Jeśli po update albo twardym resecie zniknie `./data/book_factory.db`, kontener spróbuje odtworzyć bazę z `book_factory.restore.sqlite`.
 
 ---
 

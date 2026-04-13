@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import threading
 from io import BytesIO
 
 from docx import Document
@@ -11,7 +12,7 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import mm, cm
+from reportlab.lib.units import cm, inch, mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
@@ -34,6 +35,7 @@ from ..models import BookProject
 # ── Font registration ──────────────────────────────────────────────────────────
 
 _FONTS_REGISTERED: dict[str, bool] = {}
+_FONT_REG_LOCK = threading.Lock()
 
 _STATIC_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "static", "fonts"))
 
@@ -60,6 +62,7 @@ def _font_search_dirs() -> list[str]:
 
 
 _FONT_SETS = [
+    ("Georgia",     "Georgia.ttf",                  "Georgia Bold.ttf",            "Georgia Italic.ttf"),
     ("DejaVu",      "DejaVuSerif.ttf",             "DejaVuSerif-Bold.ttf",        "DejaVuSerif-Italic.ttf"),
     ("DejaVuSans",  "DejaVuSans.ttf",              "DejaVuSans-Bold.ttf",         "DejaVuSans-Oblique.ttf"),
     ("Liberation",  "LiberationSerif-Regular.ttf", "LiberationSerif-Bold.ttf",    "LiberationSerif-Italic.ttf"),
@@ -71,46 +74,65 @@ _FONT_SETS = [
 _FONT_ALIASES: dict[str, str] = {alias: alias for alias, *_ in _FONT_SETS}
 
 
+def _register_font_variant(name: str, primary_path: str, fallback_path: str) -> bool:
+    for path in (primary_path, fallback_path):
+        if not path or not os.path.isfile(path):
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont(name, path))
+            return True
+        except Exception:
+            continue
+    return False
+
+
 def _try_register_set(folder: str, fname: str, regular: str, bold: str, italic: str) -> bool:
     rp = os.path.join(folder, regular)
     if not os.path.isfile(rp):
         return False
-    try:
-        pdfmetrics.registerFont(TTFont(fname, rp))
-        bp = os.path.join(folder, bold)
-        ip = os.path.join(folder, italic)
-        bold_name = fname + "Bold"
-        italic_name = fname + "Italic"
-        if os.path.isfile(bp):
-            pdfmetrics.registerFont(TTFont(bold_name, bp))
-        if os.path.isfile(ip):
-            pdfmetrics.registerFont(TTFont(italic_name, ip))
-        return True
-    except Exception:
+
+    bold_name = fname + "Bold"
+    italic_name = fname + "Italic"
+    bp = os.path.join(folder, bold)
+    ip = os.path.join(folder, italic)
+
+    if not _register_font_variant(fname, rp, rp):
         return False
+
+    # ReportLab may request Bold/Italic aliases when rendering Paragraph markup
+    # or when the page decorator switches variants. Ensure those aliases always
+    # exist, even if the real bold/italic TTF is missing in the container.
+    _register_font_variant(bold_name, bp, rp)
+    _register_font_variant(italic_name, ip, rp)
+    pdfmetrics.registerFontFamily(
+        fname,
+        normal=fname,
+        bold=bold_name,
+        italic=italic_name,
+        boldItalic=bold_name,
+    )
+    return True
 
 
 def _register_fonts():
     """Register all available font families; always marks done."""
-    global _BODY_FONT, _BODY_FONT_BOLD, _BODY_FONT_ITALIC
-
     if _FONTS_REGISTERED.get("__done__"):
         return
-    _FONTS_REGISTERED["__done__"] = True
 
-    first_available: str | None = None
-    for folder in _font_search_dirs():
-        if not os.path.isdir(folder):
-            continue
-        for fname, regular, bold, italic in _FONT_SETS:
-            if _FONTS_REGISTERED.get(fname):
+    with _FONT_REG_LOCK:
+        if _FONTS_REGISTERED.get("__done__"):
+            return
+
+        for folder in _font_search_dirs():
+            if not os.path.isdir(folder):
                 continue
-            if _try_register_set(folder, fname, regular, bold, italic):
-                _FONTS_REGISTERED[fname] = True
-                if first_available is None:
-                    first_available = fname
+            for fname, regular, bold, italic in _FONT_SETS:
+                if _FONTS_REGISTERED.get(fname):
+                    continue
+                if _try_register_set(folder, fname, regular, bold, italic):
+                    _FONTS_REGISTERED[fname] = True
 
-    # Font registration complete; use _set_active_font() to get resolved names
+        _FONTS_REGISTERED["__done__"] = True
 
 
 def _set_active_font(family: str) -> tuple[str, str, str]:
@@ -135,16 +157,61 @@ def _set_active_font(family: str) -> tuple[str, str, str]:
     return family, bold, italic
 
 
+def _coerce_font_family(value: object, default: str = "Georgia") -> str:
+    family = str(value or default).strip()
+    if family == "auto" or family in _FONT_ALIASES:
+        return family
+    return default
+
+
+def _coerce_font_size(value: object, *, default: int, minimum: int, maximum: int) -> int:
+    try:
+        size = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, size))
+
+
+def _coerce_trim_size(value: object, default: str = "6x9") -> str:
+    trim = str(value or default).strip().lower()
+    return "6x9" if trim == "6x9" else default
+
+
+def _trim_page_size(trim_size: str) -> tuple[float, float]:
+    if trim_size == "6x9":
+        return 6 * inch, 9 * inch
+    return A4
+
+
+def _coerce_bool(value: object, *, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    raw = str(value).strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _canvas_safe_text(text: object, max_len: int) -> str:
+    value = str(text or "")
+    # Canvas header/footer text should stay single-line and printable.
+    value = re.sub(r"[\x00-\x1F\x7F]+", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value[:max_len]
+
+
 # ── Color palette ──────────────────────────────────────────────────────────────
 
-INK         = colors.HexColor("#1a1a2e")
-INK_LIGHT   = colors.HexColor("#2d2d48")
-ACCENT      = colors.HexColor("#6366f1")
-ACCENT_SOFT = colors.HexColor("#a5b4fc")
-GOLD        = colors.HexColor("#f59e0b")
-CREAM       = colors.HexColor("#fafaf8")
-RULE_COLOR  = colors.HexColor("#e2e0db")
-CAPTION_COL = colors.HexColor("#6b7280")
+INK         = colors.HexColor("#1f1a17")
+INK_LIGHT   = colors.HexColor("#52463e")
+ACCENT      = colors.HexColor("#8c6a43")
+ACCENT_SOFT = colors.HexColor("#d7c4aa")
+GOLD        = colors.HexColor("#b58b4a")
+CREAM       = colors.HexColor("#f8f3ec")
+RULE_COLOR  = colors.HexColor("#d8cec0")
+CAPTION_COL = colors.HexColor("#6f655d")
 WHITE       = colors.white
 
 
@@ -194,8 +261,16 @@ class OrnamentalRule(Flowable):
 
 # ── Style builder ──────────────────────────────────────────────────────────────
 
-def _build_styles(body_font: str, bold_font: str, italic_font: str,
-                  heading_size: int = 22, body_size: int = 11) -> dict:
+def _build_styles(
+    body_font: str,
+    bold_font: str,
+    italic_font: str,
+    *,
+    book_title_size: int = 30,
+    chapter_title_size: int = 23,
+    subsection_title_size: int = 17,
+    body_size: int = 11,
+) -> dict:
     s = {}
 
     s["body"] = ParagraphStyle(
@@ -213,7 +288,7 @@ def _build_styles(body_font: str, bold_font: str, italic_font: str,
     )
     s["chapter_title"] = ParagraphStyle(
         "chapter_title",
-        fontName=bold_font, fontSize=heading_size, leading=int(heading_size * 1.3),
+        fontName=bold_font, fontSize=chapter_title_size, leading=int(chapter_title_size * 1.3),
         textColor=INK, alignment=TA_LEFT,
         spaceBefore=4, spaceAfter=6,
     )
@@ -226,13 +301,13 @@ def _build_styles(body_font: str, bold_font: str, italic_font: str,
     )
     s["section_head"] = ParagraphStyle(
         "section_head",
-        fontName=bold_font, fontSize=max(body_size + 3, 14), leading=20,
+        fontName=bold_font, fontSize=subsection_title_size, leading=max(subsection_title_size + 4, 20),
         textColor=INK, alignment=TA_LEFT,
         spaceBefore=18, spaceAfter=6,
     )
     s["subsection_head"] = ParagraphStyle(
         "subsection_head",
-        fontName=bold_font, fontSize=max(body_size + 1, 12), leading=18,
+        fontName=bold_font, fontSize=max(subsection_title_size - 1, 13), leading=max(subsection_title_size + 2, 18),
         textColor=INK_LIGHT, alignment=TA_LEFT,
         spaceBefore=12, spaceAfter=4,
     )
@@ -268,6 +343,7 @@ def _build_styles(body_font: str, bold_font: str, italic_font: str,
         textColor=CAPTION_COL, alignment=TA_LEFT,
         spaceBefore=0, spaceAfter=8,
     )
+    s["book_title_size"] = book_title_size
     return s
 
 
@@ -419,6 +495,32 @@ def _parse_manuscript(text: str) -> list[dict]:
     return chapters
 
 
+def _locale_key(language: str | None) -> str:
+    raw = (language or "").strip().lower()
+    if raw.startswith("de"):
+        return "de"
+    if raw.startswith("en"):
+        return "en"
+    return "pl"
+
+
+def _toc_heading(language: str | None) -> str:
+    return {
+        "de": "Inhaltsverzeichnis",
+        "en": "Table of contents",
+        "pl": "Spis treści",
+    }[_locale_key(language)]
+
+
+def _chapter_label(language: str | None, index: int) -> str:
+    prefix = {
+        "de": "Kapitel",
+        "en": "Chapter",
+        "pl": "Rozdział",
+    }[_locale_key(language)]
+    return f"{prefix} {index}"
+
+
 # ── Main exporter ──────────────────────────────────────────────────────────────
 
 class ExportService:
@@ -485,27 +587,59 @@ class ExportService:
 
     def build_pdf(self, project: BookProject) -> bytes:
         _register_fonts()
+        self._current_language = getattr(project, "language", "pl")
 
-        font_family = getattr(project, "pdf_font_family", "auto") or "auto"
-        heading_size = int(getattr(project, "pdf_heading_size", 22) or 22)
-        body_size = int(getattr(project, "pdf_body_size", 11) or 11)
+        font_family = _coerce_font_family(getattr(project, "pdf_font_family", "Georgia"))
+        trim_size = _coerce_trim_size(getattr(project, "pdf_trim_size", "6x9"))
+        book_title_size = _coerce_font_size(
+            getattr(project, "pdf_book_title_size", 30),
+            default=30,
+            minimum=18,
+            maximum=60,
+        )
+        chapter_title_size = _coerce_font_size(
+            getattr(project, "pdf_chapter_title_size", getattr(project, "pdf_heading_size", 23)),
+            default=23,
+            minimum=14,
+            maximum=48,
+        )
+        subsection_title_size = _coerce_font_size(
+            getattr(project, "pdf_subchapter_title_size", 17),
+            default=17,
+            minimum=12,
+            maximum=36,
+        )
+        body_size = _coerce_font_size(
+            getattr(project, "pdf_body_size", 11),
+            default=11,
+            minimum=8,
+            maximum=18,
+        )
 
         body_font, bold_font, italic_font = _set_active_font(font_family)
-        styles = _build_styles(body_font, bold_font, italic_font, heading_size, body_size)
+        styles = _build_styles(
+            body_font,
+            bold_font,
+            italic_font,
+            book_title_size=book_title_size,
+            chapter_title_size=chapter_title_size,
+            subsection_title_size=subsection_title_size,
+            body_size=body_size,
+        )
 
         buf = BytesIO()
-        page_w, page_h = A4
-        margin_inner = 25 * mm
-        margin_outer = 20 * mm
+        page_w, page_h = _trim_page_size(trim_size)
+        margin_inner = 0.72 * inch if trim_size == "6x9" else 25 * mm
+        margin_outer = 0.62 * inch if trim_size == "6x9" else 20 * mm
 
         doc = SimpleDocTemplate(
             buf,
-            pagesize=A4,
+            pagesize=(page_w, page_h),
             leftMargin=margin_inner,
             rightMargin=margin_outer,
-            topMargin=22 * mm + 8 * mm,
-            bottomMargin=22 * mm + 6 * mm,
-            title=project.title,
+            topMargin=(0.82 * inch if trim_size == "6x9" else 22 * mm + 8 * mm),
+            bottomMargin=(0.72 * inch if trim_size == "6x9" else 22 * mm + 6 * mm),
+            title=self._pdf_title(project),
             author=self._extract_author_name(project),
         )
 
@@ -518,11 +652,14 @@ class ExportService:
         # ── 2. Table of Contents ───────────────────────────────────────
         manuscript = (project.edited_text or project.manuscript_text or "").strip()
         chapters = _parse_manuscript(manuscript) if manuscript else []
+        include_toc = _coerce_bool(getattr(project, "pdf_include_toc", True), default=True)
+        show_page_numbers = _coerce_bool(getattr(project, "pdf_show_page_numbers", True), default=True)
 
-        if chapters:
+        if chapters and include_toc:
             story.extend(self._build_toc(chapters, styles, page_w))
             story.append(PageBreak())
 
+        if chapters:
             # ── 3. Chapters ────────────────────────────────────────────
             story.extend(self._build_chapters(chapters, styles, page_w, margin_inner, margin_outer))
         elif manuscript:
@@ -536,8 +673,16 @@ class ExportService:
 
         def _on_page(canvas, doc):
             canvas.saveState()
-            _page_header_footer(canvas, doc, project.title,
-                                self._extract_author_name(project))
+            _page_header_footer(
+                canvas,
+                doc,
+                self._pdf_title(project),
+                self._extract_author_name(project),
+                header_font=italic_font,
+                footer_font=body_font,
+                show_page_numbers=show_page_numbers,
+                accent_color=ACCENT,
+            )
             canvas.restoreState()
 
         doc.build(story, onFirstPage=_cover_page_bg, onLaterPages=_on_page)
@@ -553,12 +698,24 @@ class ExportService:
         title_style = ParagraphStyle(
             "cover_title",
             fontName=styles["chapter_title"].fontName,
-            fontSize=styles["chapter_title"].fontSize + 14,
-            leading=int((styles["chapter_title"].fontSize + 14) * 1.25),
+            fontSize=styles["book_title_size"],
+            leading=int(styles["book_title_size"] * 1.22),
             textColor=INK,
             alignment=TA_LEFT,
         )
-        elements.append(Paragraph(self._escape(project.title), title_style))
+        elements.append(Paragraph(self._escape(self._pdf_title(project)), title_style))
+        subtitle = (getattr(project, "pdf_subtitle", "") or "").strip()
+        if subtitle:
+            subtitle_style = ParagraphStyle(
+                "cover_subtitle",
+                fontName=styles["body"].fontName,
+                fontSize=max(styles["body"].fontSize + 2, 13),
+                leading=max(styles["body"].leading, 18),
+                textColor=INK_LIGHT,
+                alignment=TA_LEFT,
+            )
+            elements.append(Spacer(1, 3 * mm))
+            elements.append(Paragraph(self._escape(subtitle), subtitle_style))
         elements.append(Spacer(1, 6 * mm))
         elements.append(HRFlowable(width="100%", thickness=2, color=ACCENT, spaceAfter=6 * mm))
 
@@ -582,11 +739,11 @@ class ExportService:
         elements: list = []
 
         elements.append(Spacer(1, 6 * mm))
-        elements.append(Paragraph("Spis treści", styles["toc_title"]))
+        elements.append(Paragraph(_toc_heading(getattr(self, "_current_language", "pl")), styles["toc_title"]))
         elements.append(HRFlowable(width="40%", thickness=1, color=ACCENT_SOFT, spaceAfter=8 * mm))
 
         for idx, ch in enumerate(chapters, 1):
-            num_label = ch["num"] or f"Rozdział {idx}"
+            num_label = ch["num"] or _chapter_label(getattr(self, "_current_language", "pl"), idx)
             title = ch["title"] or ""
             if title:
                 row_text = f"<b>{self._escape(num_label)}</b>  {self._escape(title)}"
@@ -656,12 +813,19 @@ class ExportService:
 
     @staticmethod
     def _extract_author_name(project: BookProject) -> str:
+        custom = (getattr(project, "pdf_author_name", "") or "").strip()
+        if custom:
+            return custom[:80]
         bio = (project.author_bio or "").strip()
         if not bio:
             return ""
         # Take first sentence or up to first comma/dash/newline
         name = re.split(r'[,\-–—\n]', bio)[0].strip()
         return name[:80]
+
+    @staticmethod
+    def _pdf_title(project: BookProject) -> str:
+        return ((getattr(project, "pdf_title_override", "") or "").strip() or project.title).strip()
 
     def _sections(self, project: BookProject):
         all_sections = [
@@ -680,37 +844,50 @@ class ExportService:
 
 def _cover_page_bg(canvas, doc):
     canvas.saveState()
-    w, h = A4
-    canvas.setFillColor(colors.HexColor("#f0f0f8"))
+    w, h = doc.pagesize
+    canvas.setFillColor(CREAM)
     canvas.rect(0, h - 50 * mm, w, 50 * mm, fill=1, stroke=0)
-    canvas.setFillColor(colors.HexColor("#6366f1"))
+    canvas.setFillColor(ACCENT)
     canvas.rect(0, 0, 4, h, fill=1, stroke=0)
-    canvas.setFillColor(colors.HexColor("#f0f0f8"))
+    canvas.setFillColor(CREAM)
     canvas.rect(w - 30 * mm, 0, 30 * mm, 30 * mm, fill=1, stroke=0)
     canvas.restoreState()
 
 
-def _page_header_footer(canvas, doc, title: str, author: str = ""):
+def _page_header_footer(
+    canvas,
+    doc,
+    title: str,
+    author: str = "",
+    *,
+    header_font: str | None = None,
+    footer_font: str | None = None,
+    show_page_numbers: bool = True,
+    accent_color=ACCENT,
+):
     if doc.page <= 1:
         return
-    w, h = A4
-    ml, mr = 25 * mm, 20 * mm
+    w, h = doc.pagesize
+    ml, mr = doc.leftMargin, doc.rightMargin
+
+    header_font = header_font or _set_active_font("auto")[2] or "Helvetica-Oblique"
+    footer_font = footer_font or _set_active_font("auto")[0] or "Helvetica"
 
     canvas.setStrokeColor(colors.HexColor("#e2e0db"))
     canvas.setLineWidth(0.4)
 
     # Header
     canvas.line(ml, h - 18 * mm, w - mr, h - 18 * mm)
-    canvas.setFont(_set_active_font("auto")[2] or "Helvetica-Oblique", 8)
+    canvas.setFont(header_font, 8)
     canvas.setFillColor(colors.HexColor("#9ca3af"))
     if doc.page % 2 == 0:
-        canvas.drawString(ml, h - 15 * mm, title[:60])
+        canvas.drawString(ml, h - 15 * mm, _canvas_safe_text(title, 60))
     else:
-        right_label = author[:40] if author else "Book Factory"
+        right_label = _canvas_safe_text(author, 40) if author else "Book Factory"
         canvas.drawRightString(w - mr, h - 15 * mm, right_label)
 
     # Accent left bar
-    canvas.setFillColor(colors.HexColor("#6366f1"))
+    canvas.setFillColor(accent_color)
     canvas.setLineWidth(2)
     canvas.line(0, 0, 0, h)
 
@@ -718,9 +895,10 @@ def _page_header_footer(canvas, doc, title: str, author: str = ""):
     canvas.setLineWidth(0.4)
     canvas.setStrokeColor(colors.HexColor("#e2e0db"))
     canvas.line(ml, 16 * mm, w - mr, 16 * mm)
-    canvas.setFont(_set_active_font("auto")[0] or "Helvetica", 9)
-    canvas.setFillColor(colors.HexColor("#9ca3af"))
-    canvas.drawCentredString(w / 2, 12 * mm, str(doc.page - 1))
+    if show_page_numbers:
+        canvas.setFont(footer_font, 9)
+        canvas.setFillColor(colors.HexColor("#9ca3af"))
+        canvas.drawCentredString(w / 2, 12 * mm, str(doc.page - 1))
 
 
 export_service = ExportService()
