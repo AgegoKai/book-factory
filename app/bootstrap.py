@@ -40,6 +40,7 @@ def migrate_db() -> None:
         ("pdf_include_toc", "BOOLEAN DEFAULT 1"),
         ("pdf_show_page_numbers", "BOOLEAN DEFAULT 1"),
         ("human_check_result", "TEXT DEFAULT ''"),
+        ("quality_report", "TEXT DEFAULT ''"),
     ]
     with engine.connect() as conn:
         result = conn.execute(text("PRAGMA table_info(book_projects)"))
@@ -86,6 +87,12 @@ def migrate_db() -> None:
             )
 
         new_user_settings_columns = [
+            ("openai_api_key", "VARCHAR(500) DEFAULT ''"),
+            ("openai_base_url", "VARCHAR(500) DEFAULT ''"),
+            ("openai_model", "VARCHAR(200) DEFAULT ''"),
+            ("openclaw_oauth_token", "VARCHAR(2000) DEFAULT ''"),
+            ("openclaw_base_url", "VARCHAR(500) DEFAULT ''"),
+            ("openclaw_model", "VARCHAR(200) DEFAULT ''"),
             ("preferred_llm_provider", "VARCHAR(30) DEFAULT 'auto'"),
             ("copyleaks_email", "VARCHAR(255) DEFAULT ''"),
             ("copyleaks_api_key", "VARCHAR(500) DEFAULT ''"),

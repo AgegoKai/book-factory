@@ -81,6 +81,64 @@
   </button>
 </div>
 
+<!-- Quality / Status panel -->
+{% if quality and quality.stats %}
+{% set s = quality.stats %}
+{% set ratio_pct = (s.word_ratio * 100) | round(0, 'floor') %}
+<div class="card quality-panel" style="margin-bottom:16px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <i data-lucide="shield-check" style="width:18px;height:18px;color:{% if quality.passed %}var(--accent-light){% else %}#fda4af{% endif %};"></i>
+      <strong style="font-size:0.95rem;">{% if quality.passed %}Status jakości: OK{% else %}Status jakości: do poprawy{% endif %}</strong>
+      <span class="badge {% if quality.passed %}badge-ready{% else %}badge-qa_failed{% endif %}">{{ 'PASSED' if quality.passed else 'QA FAILED' }}</span>
+    </div>
+    <form method="post" action="/projects/{{ project.id }}/quality" style="margin:0;">
+      <button type="submit" class="btn-sm btn-secondary">
+        <i data-lucide="refresh-cw" style="width:12px;height:12px;"></i> Sprawdź ponownie
+      </button>
+    </form>
+  </div>
+  <div class="quality-grid">
+    <div class="quality-stat">
+      <div class="quality-stat-label">Rozdziały</div>
+      <div class="quality-stat-value">{{ s.actual_chapters }} / {{ s.target_chapters }}</div>
+    </div>
+    <div class="quality-stat">
+      <div class="quality-stat-label">Słowa</div>
+      <div class="quality-stat-value">{{ "{:,}".format(s.actual_words).replace(',', ' ') }} / {{ "{:,}".format(s.target_words).replace(',', ' ') }}</div>
+      <div class="quality-bar">
+        <div class="quality-bar-fill {% if s.word_ratio < s.min_word_ratio %}warn{% endif %}" style="width:{{ ratio_pct if ratio_pct < 100 else 100 }}%;"></div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--text-muted);margin-top:4px;">{{ ratio_pct }}% celu (min. {{ (s.min_word_ratio * 100) | int }}%)</div>
+    </div>
+    <div class="quality-stat">
+      <div class="quality-stat-label">Manuskrypt</div>
+      <div class="quality-stat-value">{{ 'Edytowany' if s.uses_edited_manuscript else 'Draft' }}</div>
+    </div>
+    <div class="quality-stat">
+      <div class="quality-stat-label">Język</div>
+      <div class="quality-stat-value">{{ s.locale | upper }}</div>
+    </div>
+  </div>
+  {% if quality.issues %}
+  <div class="quality-issues">
+    <strong style="display:block;margin-bottom:4px;">Problemy do poprawy</strong>
+    <ul>
+      {% for issue in quality.issues %}<li>{{ issue }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% if quality.warnings %}
+  <div class="quality-warnings">
+    <strong style="display:block;margin-bottom:4px;">Ostrzeżenia</strong>
+    <ul>
+      {% for warning in quality.warnings %}<li>{{ warning }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- =================== TAB: Pipeline =================== -->
 <div class="tab-panel {% if active_tab == 'pipeline' %}active{% endif %}" id="tab-pipeline">
   <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">

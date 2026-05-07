@@ -220,6 +220,7 @@ def project_detail(
     project_style_labels = writing_style_labels(project.writing_styles, project.writing_style)
     translations: dict = {}
     human_check: dict = {}
+    quality: dict = {}
     if project.translations:
         try:
             translations = json.loads(project.translations)
@@ -230,6 +231,11 @@ def project_detail(
             human_check = json.loads(project.human_check_result)
         except Exception:
             human_check = {}
+    if project.quality_report:
+        try:
+            quality = json.loads(project.quality_report)
+        except Exception:
+            quality = {}
     active_tab = request.query_params.get("tab", "pipeline")
     return templates.TemplateResponse(
         request,
@@ -242,6 +248,7 @@ def project_detail(
             "providers": providers,
             "translations": translations,
             "human_check": human_check,
+            "quality": quality,
             "active_tab": active_tab,
             "llm_routing_label": _llm_routing_label(_get_user_settings(user, db)),
             "default_system_prompt": get_book_writer_default_prompt(project.language),
@@ -486,6 +493,65 @@ def translate_project(
     )
 
 
+
+@app.post("/projects/{project_id}/quality")
+def run_quality(
+    project_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    project = _project_or_404(project_id, user, db)
+    payload = book_pipeline_service.run_quality_pass(project)
+    if payload.get("passed"):
+        if project.status in ("draft", "running", "qa_failed"):
+            project.status = "ready"
+    else:
+        project.status = "qa_failed"
+    db.add(project)
+    db.commit()
+    return RedirectResponse(
+        url=f"/projects/{project.id}?tab=pipeline", status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
+
+@app.post("/projects/{project_id}/clone")
+def clone_project(
+    project_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    """Duplicate a project with all its settings — useful for mass production variations."""
+    source = _project_or_404(project_id, user, db)
+    new_title = f"{source.title} (kopia)"
+    clone = BookProject(
+        owner_id=user.id,
+        title=new_title,
+        concept=source.concept,
+        language=source.language,
+        target_market=source.target_market or "",
+        target_audience=source.target_audience or "",
+        target_chapters=source.target_chapters or 0,
+        target_words=source.target_words or 0,
+        target_pages=source.target_pages or 0,
+        writing_style=source.writing_style or "",
+        writing_styles=source.writing_styles or "[]",
+        tone_preferences=source.tone_preferences or "",
+        inspiration_sources=source.inspiration_sources or "",
+        custom_system_prompt=source.custom_system_prompt or "",
+        author_bio=source.author_bio or "",
+        emotions_to_convey=source.emotions_to_convey or "",
+        knowledge_to_share=source.knowledge_to_share or "",
+        status="draft",
+        # pipeline artifacts are NOT copied — user starts a fresh generation
+    )
+    db.add(clone)
+    db.commit()
+    db.refresh(clone)
+    return RedirectResponse(
+        url=f"/projects/{clone.id}", status_code=status.HTTP_303_SEE_OTHER
+    )
+
 @app.post("/projects/{project_id}/human-check")
 def run_human_check(
     project_id: int,
@@ -572,7 +638,7 @@ def settings_page(
     )
 
 
-_ALLOWED_PREFERRED_LLM = frozenset({"auto", "lm_studio", "google_gemini", "openrouter"})
+_ALLOWED_PREFERRED_LLM = frozenset({"auto", "lm_studio", "google_gemini", "openrouter", "openai", "openclaw"})
 
 
 @app.post("/settings")
@@ -586,6 +652,12 @@ def save_settings(
     google_model: str = Form(""),
     openrouter_api_key: str = Form(""),
     openrouter_model: str = Form(""),
+    openai_api_key: str = Form(""),
+    openai_base_url: str = Form(""),
+    openai_model: str = Form(""),
+    openclaw_oauth_token: str = Form(""),
+    openclaw_base_url: str = Form(""),
+    openclaw_model: str = Form(""),
     copyleaks_email: str = Form(""),
     copyleaks_api_key: str = Form(""),
     user: User = Depends(current_user),
@@ -607,6 +679,12 @@ def save_settings(
     user_settings.google_model = google_model.strip()
     user_settings.openrouter_api_key = openrouter_api_key.strip()
     user_settings.openrouter_model = openrouter_model.strip()
+    user_settings.openai_api_key = openai_api_key.strip()
+    user_settings.openai_base_url = openai_base_url.strip()
+    user_settings.openai_model = openai_model.strip()
+    user_settings.openclaw_oauth_token = openclaw_oauth_token.strip()
+    user_settings.openclaw_base_url = openclaw_base_url.strip()
+    user_settings.openclaw_model = openclaw_model.strip()
     user_settings.copyleaks_email = copyleaks_email.strip()
     user_settings.copyleaks_api_key = copyleaks_api_key.strip()
     db.commit()
@@ -703,6 +781,24 @@ async def test_single_provider(
                 "response": f"human={result['human_score']:.0%}, ai={result['ai_score']:.0%}",
             }
 
+        elif provider == "openai":
+            cfg = LLMConfig(
+                openai_api_key=key or saved_cfg.resolve_openai_key(),
+                openai_base_url=url or saved_cfg.resolve_openai_base_url(),
+                openai_model=mdl or saved_cfg.resolve_openai_model(),
+            )
+            text = llm_service._call_openai(SYS, USR, cfg)
+            return {"ok": True, "provider": "openai", "response": text[:100]}
+
+        elif provider == "openclaw":
+            cfg = LLMConfig(
+                openclaw_oauth_token=key or saved_cfg.resolve_openclaw_token(),
+                openclaw_base_url=url or saved_cfg.resolve_openclaw_base_url(),
+                openclaw_model=mdl or saved_cfg.resolve_openclaw_model(),
+            )
+            text = llm_service._call_openclaw(SYS, USR, cfg)
+            return {"ok": True, "provider": "openclaw", "response": text[:100]}
+
         else:
             return {"ok": False, "error": f"Nieznany provider: {provider}"}
 
@@ -788,11 +884,13 @@ def _llm_routing_label(user_settings: UserSettings | None) -> str:
     if p not in _ALLOWED_PREFERRED_LLM:
         p = "auto"
     return {
-        "auto": "Automatycznie: LM Studio → Gemini → OpenRouter",
+        "auto": "Automatycznie: OAuth → LM Studio → Gemini → OpenRouter → OpenAI",
         "lm_studio": "Tylko LM Studio (bez przełączania na inne API)",
         "google_gemini": "Tylko Google Gemini",
         "openrouter": "Tylko OpenRouter",
-    }[p]
+        "openai": "Tylko OpenAI (GPT-4o / o3 / Codex)",
+        "openclaw": "Tylko OAuth — ChatGPT / Codex (przez OpenClaw)",
+    }.get(p, "Automatycznie")
 
 
 def _build_providers_status(user: User, db: Session) -> list[dict]:
@@ -825,6 +923,20 @@ def _build_providers_status(user: User, db: Session) -> list[dict]:
             "summary": "Router darmowych modeli. Ostatni fallback bez GPU.",
             "status": "configured" if or_key else "missing",
             "detail": "Klucz skonfigurowany" if or_key else "Brak klucza API",
+        },
+        {
+            "name": "OpenAI",
+            "icon": "sparkles",
+            "summary": "GPT-4o / o3 / gpt-4.1. Najlepszy dla masowej produkcji.",
+            "status": "configured" if (getattr(us, "openai_api_key", "") or settings.openai_api_key) else "missing",
+            "detail": "Klucz skonfigurowany" if (getattr(us, "openai_api_key", "") or settings.openai_api_key) else "Brak klucza API",
+        },
+        {
+            "name": "OAuth / ChatGPT",
+            "icon": "key-round",
+            "summary": "ChatGPT OAuth / Codex — bez API key, przez subskrypcję ChatGPT.",
+            "status": "configured" if (getattr(us, "openclaw_oauth_token", "") or settings.openclaw_oauth_token) else "missing",
+            "detail": "Token OAuth ustawiony" if (getattr(us, "openclaw_oauth_token", "") or settings.openclaw_oauth_token) else "Brak tokena — uruchom openclaw auth login",
         },
         {
             "name": "Human Check",

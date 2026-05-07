@@ -241,7 +241,14 @@ class UserSettings(Base):
     openrouter_model: Mapped[str] = mapped_column(String(200), default="")
     copyleaks_email: Mapped[str] = mapped_column(String(255), default="")
     copyleaks_api_key: Mapped[str] = mapped_column(String(500), default="")
-    # auto | lm_studio | google_gemini | openrouter — który LLM generuje treść w tej sesji
+    openai_api_key: Mapped[str] = mapped_column(String(500), default="")
+    openai_base_url: Mapped[str] = mapped_column(String(500), default="")
+    openai_model: Mapped[str] = mapped_column(String(200), default="")
+    # OpenClaw OAuth gateway — session token from `openclaw models auth login`
+    openclaw_oauth_token: Mapped[str] = mapped_column(String(2000), default="")
+    openclaw_base_url: Mapped[str] = mapped_column(String(500), default="")
+    openclaw_model: Mapped[str] = mapped_column(String(200), default="")
+    # auto | lm_studio | google_gemini | openrouter | openai — który LLM generuje treść w tej sesji
     preferred_llm_provider: Mapped[str] = mapped_column(String(30), default="auto")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -301,6 +308,7 @@ class BookProject(Base):
     pdf_include_toc: Mapped[bool] = mapped_column(Boolean, default=True)
     pdf_show_page_numbers: Mapped[bool] = mapped_column(Boolean, default=True)
     human_check_result: Mapped[str] = mapped_column(Text, default="")
+    quality_report: Mapped[str] = mapped_column(Text, default="")
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

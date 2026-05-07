@@ -349,7 +349,7 @@ def _build_styles(
 
 # ── Parse helpers ──────────────────────────────────────────────────────────────
 
-def _classify_line(line: str) -> tuple[str, str, str]:
+def _classify_line(line: str, language: str | None = None) -> tuple[str, str, str]:
     """
     Classify a line for PDF rendering.
     Returns (kind, num_label, title).
@@ -363,12 +363,12 @@ def _classify_line(line: str) -> tuple[str, str, str]:
     if m:
         num = m.group(1)
         title = (m.group(2) or "").strip()
-        return "chapter", f"ROZDZIAŁ {num}", title
+        return "chapter", _chapter_label(language, int(num)), title
 
     # Numbered list item as chapter (e.g., "1. Title")
     m = re.match(r"^(\d+)\.\s+(.{5,60})$", stripped)
     if m:
-        return "chapter", f"ROZDZIAŁ {m.group(1)}", m.group(2).strip()
+        return "chapter", _chapter_label(language, int(m.group(1))), m.group(2).strip()
 
     # ### subsection
     m = re.match(r"^###\s+(.+)$", stripped)
@@ -418,7 +418,7 @@ def _clean_llm_text(text: str) -> str:
     return text.strip()
 
 
-def _parse_manuscript(text: str) -> list[dict]:
+def _parse_manuscript(text: str, language: str | None = None) -> list[dict]:
     """
     Parse manuscript into chapters.
     Each chapter: {num, title, content}
@@ -450,7 +450,7 @@ def _parse_manuscript(text: str) -> list[dict]:
         line = lines[i]
         stripped = line.strip()
 
-        kind, num, title = _classify_line(stripped)
+        kind, num, title = _classify_line(stripped, language)
 
         if kind == "separator":
             # Check for ======\nTitle\n====== pattern (pipeline chapter separator)
@@ -504,6 +504,42 @@ def _locale_key(language: str | None) -> str:
     return "pl"
 
 
+def _docx_section_labels(language: str | None) -> dict:
+    locale = _locale_key(language)
+    catalog = {
+        "pl": {
+            "manuscript": "Manuskrypt",
+            "outline": "Konspekt",
+            "prompts": "Prompty rozdziałów",
+            "draft": "Draft",
+            "edited": "Zredagowany manuskrypt",
+        },
+        "en": {
+            "manuscript": "Manuscript",
+            "outline": "Outline",
+            "prompts": "Chapter prompts",
+            "draft": "Draft",
+            "edited": "Edited manuscript",
+        },
+        "de": {
+            "manuscript": "Manuskript",
+            "outline": "Gliederung",
+            "prompts": "Kapitel-Prompts",
+            "draft": "Entwurf",
+            "edited": "Redigiertes Manuskript",
+        },
+    }
+    return catalog[locale]
+
+
+def _manuscript_heading(language: str | None) -> str:
+    return {
+        "de": "Manuskript",
+        "en": "Manuscript",
+        "pl": "Manuskrypt",
+    }[_locale_key(language)]
+
+
 def _toc_heading(language: str | None) -> str:
     return {
         "de": "Inhaltsverzeichnis",
@@ -552,15 +588,17 @@ class ExportService:
 
         doc.add_page_break()
 
+        lang = getattr(project, "language", "pl")
         content = project.edited_text or project.manuscript_text or ""
+        labels = _docx_section_labels(lang)
         if content.strip():
-            sections_map = [("Manuskrypt", content)]
+            sections_map = [(labels["manuscript"], content)]
         else:
             sections_map = [
-                ("Konspekt", project.outline_text),
-                ("Prompty rozdziałów", project.chapter_prompts),
-                ("Draft", project.manuscript_text),
-                ("Zredagowany manuskrypt", project.edited_text),
+                (labels["outline"], project.outline_text),
+                (labels["prompts"], project.chapter_prompts),
+                (labels["draft"], project.manuscript_text),
+                (labels["edited"], project.edited_text),
             ]
 
         for sec_title, sec_content in sections_map:
@@ -651,7 +689,7 @@ class ExportService:
 
         # ── 2. Table of Contents ───────────────────────────────────────
         manuscript = (project.edited_text or project.manuscript_text or "").strip()
-        chapters = _parse_manuscript(manuscript) if manuscript else []
+        chapters = _parse_manuscript(manuscript, getattr(project, "language", "pl")) if manuscript else []
         include_toc = _coerce_bool(getattr(project, "pdf_include_toc", True), default=True)
         show_page_numbers = _coerce_bool(getattr(project, "pdf_show_page_numbers", True), default=True)
 
@@ -663,7 +701,7 @@ class ExportService:
             # ── 3. Chapters ────────────────────────────────────────────
             story.extend(self._build_chapters(chapters, styles, page_w, margin_inner, margin_outer))
         elif manuscript:
-            story.append(Paragraph("Manuskrypt", styles["section_head"]))
+            story.append(Paragraph(_manuscript_heading(getattr(project, "language", "pl")), styles["section_head"]))
             story.append(OrnamentalRule(page_w - margin_inner - margin_outer))
             story.append(Spacer(1, 6 * mm))
             for block in manuscript.split("\n\n"):
@@ -883,8 +921,9 @@ def _page_header_footer(
     if doc.page % 2 == 0:
         canvas.drawString(ml, h - 15 * mm, _canvas_safe_text(title, 60))
     else:
-        right_label = _canvas_safe_text(author, 40) if author else "Book Factory"
-        canvas.drawRightString(w - mr, h - 15 * mm, right_label)
+        right_label = _canvas_safe_text(author, 40)
+        if right_label:
+            canvas.drawRightString(w - mr, h - 15 * mm, right_label)
 
     # Accent left bar
     canvas.setFillColor(accent_color)

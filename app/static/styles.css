@@ -308,6 +308,26 @@ a.card-link:hover .card {
 .badge-missing {
   background: rgba(244,63,94,0.15); color: #fb7185; border: 1px solid rgba(244,63,94,0.3);
 }
+.badge-qa_failed {
+  background: rgba(244,63,94,0.18); color: #fda4af; border: 1px solid rgba(244,63,94,0.35);
+}
+.badge-keywords_ready, .badge-catalog_ready, .badge-prompts_ready {
+  background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);
+}
+
+/* Quality panel styling */
+.quality-panel { display: flex; flex-direction: column; gap: 12px; }
+.quality-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.quality-stat { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.quality-stat-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.quality-stat-value { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-top: 4px; }
+.quality-bar { height: 6px; border-radius: 999px; background: rgba(148,163,184,0.18); overflow: hidden; margin-top: 6px; }
+.quality-bar-fill { height: 100%; background: linear-gradient(90deg, #fbbf24, #34d399); transition: width 0.3s ease; }
+.quality-bar-fill.warn { background: linear-gradient(90deg, #fda4af, #fbbf24); }
+.quality-issues { background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.25); border-radius: 10px; padding: 10px 14px; color: #fda4af; font-size: 0.8rem; }
+.quality-warnings { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: 10px; padding: 10px 14px; color: #fbbf24; font-size: 0.8rem; }
+.quality-issues ul, .quality-warnings ul { padding-left: 18px; margin: 4px 0; }
+.quality-issues li, .quality-warnings li { margin-bottom: 3px; }
 
 /* ======================================================
    BUTTONS

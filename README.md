@@ -205,6 +205,39 @@ Sprawdzają m.in. health, logowanie, CRUD projektu, eksport, ustawienia, parsowa
 
 ---
 
+## Etapowy pipeline generacji (ULTRA upgrade)
+
+Generowanie książki jest teraz wieloetapowe, niezależnie sprawdzane i kompletnie
+zlokalizowane na język książki:
+
+1. **Book Blueprint** — kontekst projektu (target_chapters, target_words, miks stylów, język).
+2. **Outline** — dokładnie N rozdziałów, z 2–4 podrozdziałami, w języku książki.
+3. **Chapter Prompt Blocks** — minimum 2 bloki na rozdział z `min_words`, `target_words`,
+   listą zakazanych elementów i językiem wyjścia.
+4. **Draft blokami** — każdy blok generowany osobno, z kontekstem poprzednich bloków,
+   automatycznym **top-up** gdy odpowiedź jest krótsza niż `min_words`, czyszczeniem
+   zmyślonych przypisów / URL / metakomentarzy.
+5. **Chapter Assembly** — bloki zlepiane w rozdziały z poprawnym, zlokalizowanym
+   nagłówkiem (`Chapter` / `Kapitel` / `Rozdział`).
+6. **Editing pass per rozdział** — `generate_edit` redaguje rozdział po rozdziale,
+   raportując postęp z lokalizowanym komunikatem.
+7. **Global QA** (`app/services/quality.py`) — automatyczna walidacja przed `status=ready`:
+   - liczba rozdziałów = `target_chapters`,
+   - liczba słów ≥ 85 % `target_words`,
+   - brak `Bibliography / References / Sources / Przypisy / Źródła / Literaturverzeichnis`,
+   - brak polskich etykiet rozdziałów w książce EN / DE,
+   - brak artefaktów Markdown (`**`, `__`, `---`),
+   - brak zmyślonych cytowań typu `[1]` / `(Smith, 2020)`,
+   - brak watermarków `Book Factory`.
+   Wynik trafia do `BookProject.quality_report` (JSON) i jest renderowany w panelu
+   *Status jakości* w detalu projektu, oraz na dashboardzie (badge `qa_failed`).
+
+Stary `target_pages` pozostał jako legacy — nowa generacja używa `target_chapters` +
+`target_words`. Migracja `migrate_db()` dodaje brakujące kolumny i nie kasuje danych
+ze starszych projektów.
+
+---
+
 ## Czego świadomie brakuje / możliwe rozszerzenia
 
 | Obszar | Uwagi |

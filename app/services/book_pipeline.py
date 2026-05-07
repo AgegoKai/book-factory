@@ -14,6 +14,7 @@ from ..models import (
     get_book_writer_default_prompt,
 )
 from .llm import LLMConfig, LLMError, llm_service
+from .quality import run_quality_check, report_to_json_dict
 
 # ── In-memory progress store ───────────────────────────────────────────────────
 # Lightweight — keyed by project_id; cleared when step finishes.
@@ -326,6 +327,12 @@ def _build_cfg(user_settings: UserSettings | None) -> LLMConfig:
         google_model=user_settings.google_model or "",
         openrouter_api_key=user_settings.openrouter_api_key or "",
         openrouter_model=user_settings.openrouter_model or "",
+        openai_api_key=getattr(user_settings, "openai_api_key", "") or "",
+        openai_base_url=getattr(user_settings, "openai_base_url", "") or "",
+        openai_model=getattr(user_settings, "openai_model", "") or "",
+        openclaw_oauth_token=getattr(user_settings, "openclaw_oauth_token", "") or "",
+        openclaw_base_url=getattr(user_settings, "openclaw_base_url", "") or "",
+        openclaw_model=getattr(user_settings, "openclaw_model", "") or "",
         preferred_llm_provider=(user_settings.preferred_llm_provider or "").strip(),
     )
 
@@ -523,6 +530,52 @@ def _chapter_block_prompt(locale: str, chapter_title: str, focus: str, style: st
     )
 
 
+
+
+def _split_manuscript_into_chapters(manuscript: str, locale: str) -> list[dict]:
+    """Split a generated manuscript into chapter blocks (Etap 6).
+
+    Returns a list of ``{"heading": str, "title": str, "body": str}``
+    entries in the order they appear. The heading line is preserved exactly
+    so the editing step can keep it stable.
+    """
+    if not manuscript:
+        return []
+    pattern = re.compile(
+        r"(?im)^(?P<full>(?:Rozdział|Rozdzial|ROZDZIAŁ|Chapter|CHAPTER|Kapitel|KAPITEL|Capítulo|Capitulo|Chapitre)\s+(?P<num>\d+)[:\.\-]?\s*(?P<title>.+)?)\s*$"
+    )
+    matches = list(pattern.finditer(manuscript))
+    if not matches:
+        return []
+
+    chapters: list[dict] = []
+    for idx, match in enumerate(matches):
+        start = match.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(manuscript)
+        body = manuscript[start:end].strip("\n")
+        heading = match.group("full").strip()
+        title = (match.group("title") or "").strip()
+        chapters.append({"heading": heading, "title": title, "body": body})
+    return chapters
+
+
+def _edit_progress_msg(locale: str, idx: int, total: int, title: str) -> str:
+    snippet = (title or "").strip()
+    if len(snippet) > 60:
+        snippet = snippet[:57] + "..."
+    if locale == "de":
+        if total <= 1:
+            return "Redigiere Manuskript..."
+        return f"Redigiere Kapitel {idx}/{total}{(': ' + snippet) if snippet else ''}"
+    if locale == "en":
+        if total <= 1:
+            return "Editing manuscript..."
+        return f"Editing chapter {idx}/{total}{(': ' + snippet) if snippet else ''}"
+    if total <= 1:
+        return "Redaguję manuskrypt..."
+    return f"Redaguję rozdział {idx}/{total}{(': ' + snippet) if snippet else ''}"
+
+
 class BookPipelineService:
     step_order = ["outline", "prompts", "draft", "edit", "seo", "keywords", "catalog", "cover", "publish"]
 
@@ -532,28 +585,57 @@ class BookPipelineService:
         user_settings: UserSettings | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> BookProject:
-        def _prog(msg, ch=0, tot=0):
-            if on_progress:
-                on_progress(msg, ch, tot)
+        locale = _prompt_locale(project.language)
+
+        def _prog(msg_pl: str, msg_en: str, msg_de: str, ch: int = 0, tot: int = 0) -> None:
+            if not on_progress:
+                return
+            msg = msg_de if locale == "de" else msg_en if locale == "en" else msg_pl
+            on_progress(msg, ch, tot)
+
         cfg = _build_cfg(user_settings)
-        _prog("Generuję konspekt...")
+        _prog("Generuję konspekt...", "Generating outline...", "Erzeuge Gliederung...")
         self.generate_outline(project, cfg)
-        _prog("Generuję prompty rozdziałów...")
+        _prog(
+            "Generuję prompty rozdziałów...",
+            "Generating chapter prompts...",
+            "Erzeuge Kapitel-Prompts...",
+        )
         self.generate_prompts(project, cfg)
         self.generate_draft(project, cfg, on_progress=on_progress)
         self.generate_edit(project, cfg, on_progress=on_progress)
-        _prog("Generuję opis SEO...")
+        _prog("Generuję opis SEO...", "Generating SEO description...", "Erzeuge SEO-Beschreibung...")
         self.generate_seo(project, cfg)
-        _prog("Generuję słowa kluczowe...")
+        _prog("Generuję słowa kluczowe...", "Generating keywords...", "Erzeuge Keywords...")
         self.generate_keywords(project, cfg)
-        _prog("Generuję drzewo katalogu...")
+        _prog(
+            "Generuję drzewo katalogu...",
+            "Generating catalog tree...",
+            "Erzeuge Kategoriebaum...",
+        )
         self.generate_catalog(project, cfg)
-        _prog("Generuję brief okładki...")
+        _prog("Generuję brief okładki...", "Generating cover brief...", "Erzeuge Cover-Brief...")
         self.generate_cover(project, cfg)
-        _prog("Generuję checklistę publikacji...")
+        _prog(
+            "Generuję checklistę publikacji...",
+            "Generating publish checklist...",
+            "Erzeuge Veroeffentlichungs-Checkliste...",
+        )
         self.generate_publish(project, cfg)
-        project.status = "ready"
+
+        # ── Etap 7: Global QA ────────────────────────────────────────────────
+        _prog("Sprawdzam jakość...", "Running quality check...", "Pruefe Qualitaet...")
+        report = self.run_quality_pass(project)
+        project.status = "ready" if report["passed"] else "qa_failed"
         return project
+
+    def run_quality_pass(self, project: BookProject) -> dict:
+        """Run the QA module and persist the JSON report on the project."""
+        import json
+        report = run_quality_check(project)
+        payload = report_to_json_dict(report)
+        project.quality_report = json.dumps(payload, ensure_ascii=False)
+        return payload
 
     def run_step(
         self,
@@ -685,38 +767,61 @@ class BookPipelineService:
         cfg: LLMConfig | None = None,
         on_progress: ProgressCallback | None = None,
     ) -> BookProject:
+        """Per-chapter editing pass (Etap 6).
+
+        Splits the draft into chapters using ``_split_manuscript_into_chapters``
+        and edits each chapter independently. This keeps edit prompts short, the
+        edited prose tightly scoped, and lets us report progress per chapter.
+        Falls back to chunk-based editing only when the draft has no detectable
+        chapters (e.g. user pasted a single blob).
+        """
         cfg = cfg or LLMConfig()
         locale = _prompt_locale(project.language)
         system_prompt = (project.custom_system_prompt or "").strip() or get_book_writer_default_prompt(project.language)
-        draft = project.manuscript_text or ""
+        draft = (project.manuscript_text or "").strip()
+
+        if not draft:
+            project.edited_text = ""
+            project.status = "edit_ready"
+            return project
+
+        chapters = _split_manuscript_into_chapters(draft, locale)
+
+        if chapters:
+            edited_parts: list[str] = []
+            last_provider = "template_fallback"
+            total = len(chapters)
+            for idx, ch in enumerate(chapters, 1):
+                heading = ch["heading"]
+                body = ch["body"].strip()
+                msg = _edit_progress_msg(locale, idx, total, ch["title"])
+                if on_progress:
+                    on_progress(msg, idx, total)
+                if not body:
+                    if heading:
+                        edited_parts.append(heading.strip())
+                    continue
+                user_prompt = self._chapter_edit_user_prompt(project, locale, heading, body)
+                edited_body, provider = self._generate(
+                    system_prompt + "\n\n" + _sys_editor_chunk(locale),
+                    user_prompt,
+                    cfg,
+                )
+                edited_body = self._clean_edited_chapter(edited_body, heading)
+                section = f"{heading.strip()}\n\n{edited_body.strip()}" if heading else edited_body.strip()
+                edited_parts.append(section)
+                last_provider = provider
+            project.edited_text = "\n\n".join(part for part in edited_parts if part).strip()
+            project.llm_provider_used = last_provider
+            project.status = "edit_ready"
+            return project
+
+        # ── No detectable chapters: fall back to chunk-based editing ──────────
         chunk_size = 8000
         if len(draft) <= chunk_size:
             if on_progress:
-                on_progress("Redaguję manuskrypt...", 1, 1)
-            if locale == "de":
-                user_prompt = dedent(f"""
-                Redigiere den folgenden Entwurf: verbessere Fluss, Stil und narrative Kohärenz, entferne Wiederholungen.
-                Behalte eine natuerliche menschliche Stimme. Stilpraeferenzen: {project.tone_preferences}
-
-                ENTWURF:
-                {draft}
-                """)
-            elif locale == "en":
-                user_prompt = dedent(f"""
-                Edit the draft below: improve flow, style, and narrative consistency, and remove repetition.
-                Keep a natural human voice. Style preferences: {project.tone_preferences}
-
-                DRAFT:
-                {draft}
-                """)
-            else:
-                user_prompt = dedent(f"""
-                Zredaguj poniższy draft: popraw flow, styl, spójność narracyjną, usuń powtórzenia.
-                Zachowaj naturalny ludzki głos. Preferencje stylu: {project.tone_preferences}
-
-                DRAFT:
-                {draft}
-                """)
+                on_progress(_edit_progress_msg(locale, 1, 1, ""), 1, 1)
+            user_prompt = self._whole_draft_edit_prompt(project, locale, draft)
             edited, provider = self._generate(
                 system_prompt + "\n\n" + _sys_editor_full(locale),
                 user_prompt,
@@ -731,31 +836,8 @@ class BookPipelineService:
             last_provider = "template_fallback"
             for idx, chunk in enumerate(chunks, 1):
                 if on_progress:
-                    on_progress(f"Redaguję fragment {idx}/{total}...", idx, total)
-                if locale == "de":
-                    user_prompt = dedent(f"""
-                    Redigiere diesen Buchausschnitt: verbessere Fluss und Stil, entferne Wiederholungen.
-                    Stilpraeferenzen: {project.tone_preferences}
-
-                    AUSSCHNITT:
-                    {chunk}
-                    """)
-                elif locale == "en":
-                    user_prompt = dedent(f"""
-                    Edit this book fragment: improve flow and style, and remove repetition.
-                    Style preferences: {project.tone_preferences}
-
-                    FRAGMENT:
-                    {chunk}
-                    """)
-                else:
-                    user_prompt = dedent(f"""
-                    Zredaguj ten fragment książki: popraw flow, styl, usuń powtórzenia.
-                    Preferencje stylu: {project.tone_preferences}
-
-                    FRAGMENT:
-                    {chunk}
-                    """)
+                    on_progress(_edit_progress_msg(locale, idx, total, ""), idx, total)
+                user_prompt = self._chunk_edit_prompt(project, locale, chunk)
                 edited_chunk, provider = self._generate(
                     system_prompt + "\n\n" + _sys_editor_chunk(locale),
                     user_prompt,
@@ -768,6 +850,119 @@ class BookPipelineService:
 
         project.status = "edit_ready"
         return project
+
+    def _chapter_edit_user_prompt(
+        self,
+        project: BookProject,
+        locale: str,
+        heading: str,
+        body: str,
+    ) -> str:
+        style = _style_mix(project, locale) or project.tone_preferences or ""
+        if locale == "de":
+            return dedent(f"""
+            Redigiere ausschliesslich diesen Kapitel-Block. Sprache des Buchs: {_language_name(project.language)}.
+            Verbessere Fluss, Rhythmus, Wortvielfalt und Konsistenz. Streiche Phrasen, die nach KI klingen.
+            Stilpraeferenzen: {style}
+
+            Anforderungen:
+            - Erfinde keine Quellen, Fussnoten oder Bibliografie.
+            - Keine URLs, kein Markdown ausser erlaubten ## Untertiteln.
+            - Behalte Kapitelueberschrift wie sie ist.
+            - Gib nur den redigierten Kapitelblock zurueck, ohne Editor-Kommentare.
+
+            KAPITELUEBERSCHRIFT: {heading}
+
+            ENTWURF DES KAPITELS:
+            {body}
+            """)
+        if locale == "en":
+            return dedent(f"""
+            Edit only this single chapter block. Book language: {_language_name(project.language)}.
+            Improve flow, rhythm, vocabulary, and consistency. Trim AI-sounding phrasing.
+            Style preferences: {style}
+
+            Requirements:
+            - Do not invent citations, footnotes, or bibliography.
+            - No URLs and no Markdown other than allowed "## Subheading".
+            - Keep the chapter heading exactly as supplied.
+            - Return only the edited chapter block; no editor commentary.
+
+            CHAPTER HEADING: {heading}
+
+            CHAPTER DRAFT:
+            {body}
+            """)
+        return dedent(f"""
+            Zredaguj wyłącznie ten jeden rozdział. Język książki: {_language_name(project.language)}.
+            Popraw flow, rytm, słownictwo i spójność. Usuń frazy, które brzmią jak AI.
+            Preferencje stylu: {style}
+
+            Wymagania:
+            - Bez zmyślonych cytowań, przypisów i bibliografii.
+            - Bez URL i bez Markdown, dozwolone tylko "## Podtytuł".
+            - Zachowaj nagłówek rozdziału w niezmienionej postaci.
+            - Zwróć wyłącznie zredagowany blok rozdziału, bez komentarzy redakcji.
+
+            NAGŁÓWEK ROZDZIAŁU: {heading}
+
+            DRAFT ROZDZIAŁU:
+            {body}
+            """)
+
+    def _whole_draft_edit_prompt(self, project: BookProject, locale: str, draft: str) -> str:
+        if locale == "de":
+            return dedent(f"""
+            Redigiere den folgenden Entwurf: verbessere Fluss, Stil und narrative Kohärenz, entferne Wiederholungen.
+            Behalte eine natuerliche menschliche Stimme. Stilpraeferenzen: {project.tone_preferences}
+
+            ENTWURF:
+            {draft}
+            """)
+        if locale == "en":
+            return dedent(f"""
+            Edit the draft below: improve flow, style, and narrative consistency, and remove repetition.
+            Keep a natural human voice. Style preferences: {project.tone_preferences}
+
+            DRAFT:
+            {draft}
+            """)
+        return dedent(f"""
+            Zredaguj poniższy draft: popraw flow, styl, spójność narracyjną, usuń powtórzenia.
+            Zachowaj naturalny ludzki głos. Preferencje stylu: {project.tone_preferences}
+
+            DRAFT:
+            {draft}
+            """)
+
+    def _chunk_edit_prompt(self, project: BookProject, locale: str, chunk: str) -> str:
+        if locale == "de":
+            return dedent(f"""
+            Redigiere diesen Buchausschnitt: verbessere Fluss und Stil, entferne Wiederholungen.
+            Stilpraeferenzen: {project.tone_preferences}
+
+            AUSSCHNITT:
+            {chunk}
+            """)
+        if locale == "en":
+            return dedent(f"""
+            Edit this book fragment: improve flow and style, and remove repetition.
+            Style preferences: {project.tone_preferences}
+
+            FRAGMENT:
+            {chunk}
+            """)
+        return dedent(f"""
+            Zredaguj ten fragment książki: popraw flow, styl, usuń powtórzenia.
+            Preferencje stylu: {project.tone_preferences}
+
+            FRAGMENT:
+            {chunk}
+            """)
+
+    def _clean_edited_chapter(self, edited_text: str, heading: str) -> str:
+        text = self._strip_repeated_heading(edited_text or "", heading or "")
+        return _strip_forbidden_references(text)
 
     def generate_seo(self, project: BookProject, cfg: LLMConfig | None = None) -> BookProject:
         cfg = cfg or LLMConfig()
@@ -1644,44 +1839,44 @@ class BookPipelineService:
         locale = _prompt_locale(project.language)
         current = text.strip()
         attempts = 0
-        while _count_words(current) < block["min_words"] and attempts < 2:
+        while _count_words(current) < block["min_words"] and attempts < 3:
             missing = block["target_words"] - _count_words(current)
             if missing <= 0:
                 break
             if locale == "de":
                 top_up_prompt = dedent(
                     f"""
-                    Fuehre denselben Block nahtlos fort und schreibe nur den fehlenden Text.
+                    Fuehre denselben Block nahtlos fort. Nur Fliesstext — keine Ueberschrift, kein Metakommentar.
                     Kapitel: {block['chapter_title']}
-                    Fehlende Zielwoerter: mindestens {max(150, missing)}
+                    DU MUSST MINDESTENS {max(200, missing)} WOERTER SCHREIBEN. Nicht aufhoeren vorher.
                     Fokus: {block['subsections']}
-                    Bereits geschriebener Text:
-                    {current[-1800:]}
-                    Keine Quellen, Fussnoten oder Kapitelueberschrift wiederholen.
+                    Letzten 1500 Zeichen (nahtlos fortfahren):
+                    {current[-1500:]}
+                    Regeln: keine Zitate, keine Fussnoten, keine Kapitelueberschrift, kein "In diesem Abschnitt".
                     """
                 )
             elif locale == "en":
                 top_up_prompt = dedent(
                     f"""
-                    Continue the same block seamlessly and write only the missing prose.
+                    Continue the same block seamlessly. Write ONLY the continuation — no heading, no meta-commentary.
                     Chapter: {block['chapter_title']}
-                    Remaining target words: at least {max(150, missing)}
+                    YOU MUST WRITE AT LEAST {max(200, missing)} WORDS. Do not stop until you reach that count.
                     Focus: {block['subsections']}
-                    Existing text:
-                    {current[-1800:]}
-                    Do not add citations, footnotes, or repeat the chapter heading.
+                    Last 1500 chars of existing text (continue from here):
+                    {current[-1500:]}
+                    Rules: no citations, no footnotes, no chapter heading, no "In this section", pure prose only.
                     """
                 )
             else:
                 top_up_prompt = dedent(
                     f"""
-                    Kontynuuj płynnie ten sam blok i dopisz tylko brakującą treść.
+                    Kontynuuj płynnie ten sam blok. Tylko tekst — bez nagłówka, bez metakomentarzy.
                     Rozdział: {block['chapter_title']}
-                    Brakujący budżet słów: co najmniej {max(150, missing)}
+                    MUSISZ NAPISAĆ CO NAJMNIEJ {max(200, missing)} SŁÓW. Nie kończ wcześniej.
                     Fokus: {block['subsections']}
-                    Dotychczasowa treść:
-                    {current[-1800:]}
-                    Nie dodawaj przypisów, cytowań ani powtórki nagłówka rozdziału.
+                    Ostatnie 1500 znaków (kontynuuj od tutaj):
+                    {current[-1500:]}
+                    Zasady: bez przypisów, bez cytowań, bez nagłówka rozdziału, bez "W tym rozdziale".
                     """
                 )
             extra, provider = self._generate(system_prompt, top_up_prompt, cfg)
