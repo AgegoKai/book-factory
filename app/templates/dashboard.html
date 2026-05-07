@@ -21,7 +21,11 @@
   </div>
   <div class="stat-item">
     <div class="stat-value">{{ projects | selectattr('status', 'equalto', 'ready') | list | length }}</div>
-    <div class="stat-label">Gotowe</div>
+    <div class="stat-label">Gotowe (QA OK)</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">{{ projects | selectattr('status', 'equalto', 'qa_failed') | list | length }}</div>
+    <div class="stat-label">QA do poprawy</div>
   </div>
   <div class="stat-item">
     <div class="stat-value">{{ projects | rejectattr('manuscript_text', 'equalto', '') | list | length }}</div>
@@ -31,21 +35,28 @@
 
 <div class="projects-grid">
   {% for project in projects %}
-  <a class="project-card" href="/projects/{{ project.id }}">
-    <div class="project-card-head">
-      <div class="project-card-title">{{ project.title }}</div>
-      <span class="badge badge-{{ project.status }}">{{ project.status.replace('_', ' ') }}</span>
-    </div>
-    <p class="project-card-concept">{{ project.concept }}</p>
-    <div class="project-card-footer">
-      <span class="project-card-stat"><i data-lucide="library-big"></i> {{ project.target_chapters }} rozdz.</span>
-      <span class="project-card-stat"><i data-lucide="align-left"></i> {{ project.target_words }} słów</span>
-      <span class="project-card-stat"><i data-lucide="globe"></i> {{ project.language.upper() }}</span>
-      {% if project.llm_provider_used %}
-      <span class="project-card-stat"><i data-lucide="cpu"></i> {{ project.llm_provider_used }}</span>
-      {% endif %}
-    </div>
-  </a>
+  <div class="project-card-wrap">
+    <a class="project-card" href="/projects/{{ project.id }}">
+      <div class="project-card-head">
+        <div class="project-card-title">{{ project.title }}</div>
+        <span class="badge badge-{{ project.status }}">{{ project.status.replace('_', ' ') }}</span>
+      </div>
+      <p class="project-card-concept">{{ project.concept }}</p>
+      <div class="project-card-footer">
+        <span class="project-card-stat"><i data-lucide="library-big"></i> {{ project.target_chapters }} rozdz.</span>
+        <span class="project-card-stat"><i data-lucide="align-left"></i> {{ project.target_words }} słów</span>
+        <span class="project-card-stat"><i data-lucide="globe"></i> {{ project.language.upper() }}</span>
+        {% if project.llm_provider_used %}
+        <span class="project-card-stat"><i data-lucide="cpu"></i> {{ project.llm_provider_used }}</span>
+        {% endif %}
+      </div>
+    </a>
+    <form method="post" action="/projects/{{ project.id }}/clone" class="clone-form" title="Duplikuj projekt">
+      <button type="submit" class="clone-btn" aria-label="Klonuj projekt">
+        <i data-lucide="copy" style="width:14px;height:14px;"></i>
+      </button>
+    </form>
+  </div>
   {% else %}
   <div class="empty-state">
     <div class="empty-state-icon">📚</div>
@@ -56,6 +67,40 @@
   {% endfor %}
 </div>
 
+<style>
+.project-card-wrap {
+  position: relative;
+}
+.clone-form {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  margin: 0;
+}
+.clone-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+}
+.project-card-wrap:hover .clone-btn {
+  opacity: 1;
+}
+.clone-btn:hover {
+  color: var(--accent-light);
+  border-color: var(--accent-light);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+}
+</style>
 <script>
   if (typeof lucide !== 'undefined') lucide.createIcons();
 </script>

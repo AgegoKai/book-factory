@@ -13,6 +13,15 @@ class LLMError(Exception):
     pass
 
 
+class LLMProviderUnavailable(LLMError):
+    """Raised when a provider is not configured (missing key/token).
+
+    In auto-routing mode this is treated as a silent skip, not a hard error,
+    so the error message is NOT included in the final "All providers failed" summary.
+    """
+    pass
+
+
 @dataclass
 class LLMConfig:
     """Runtime config that overrides global settings — built from UserSettings."""
@@ -23,12 +32,19 @@ class LLMConfig:
     google_model: str = ""
     openrouter_api_key: str = ""
     openrouter_model: str = ""
-    # auto = LM→Gemini→OpenRouter; inne = tylko ten provider (bez prób LM gdy wyłączony)
+    openai_api_key: str = ""
+    openai_base_url: str = ""
+    openai_model: str = ""
+    # OpenClaw OAuth — ChatGPT subscription gateway (no sk- API key required)
+    openclaw_oauth_token: str = ""
+    openclaw_base_url: str = ""
+    openclaw_model: str = ""
+    # auto = LM→Gemini→OpenRouter→OpenAI→OpenClaw; inne = tylko ten provider
     preferred_llm_provider: str = ""
 
     def resolve_preferred_provider(self) -> str:
         raw = (self.preferred_llm_provider or settings.preferred_llm_provider or "auto").strip().lower()
-        allowed = {"auto", "lm_studio", "google_gemini", "openrouter"}
+        allowed = {"auto", "lm_studio", "google_gemini", "openrouter", "openai", "openclaw"}
         return raw if raw in allowed else "auto"
 
     def resolve_lm_url(self) -> str:
@@ -52,6 +68,25 @@ class LLMConfig:
     def resolve_openrouter_model(self) -> str:
         return self.openrouter_model or settings.openrouter_model
 
+    def resolve_openai_key(self) -> str:
+        return self.openai_api_key or settings.openai_api_key
+
+    def resolve_openai_base_url(self) -> str:
+        return (self.openai_base_url or settings.openai_base_url).rstrip("/")
+
+    def resolve_openai_model(self) -> str:
+        return self.openai_model or settings.openai_model
+
+    def resolve_openclaw_token(self) -> str:
+        return self.openclaw_oauth_token or settings.openclaw_oauth_token
+
+    def resolve_openclaw_base_url(self) -> str:
+        return (self.openclaw_base_url or settings.openclaw_base_url).rstrip("/")
+
+    def resolve_openclaw_model(self) -> str:
+        return self.openclaw_model or settings.openclaw_model
+
+
 
 class LLMService:
     def __init__(self) -> None:
@@ -70,19 +105,26 @@ class LLMService:
             "lm_studio": lambda s, u: self._call_lm_studio(s, u, cfg),
             "google_gemini": lambda s, u: self._call_google_gemini(s, u, cfg),
             "openrouter": lambda s, u: self._call_openrouter(s, u, cfg),
+            "openai": lambda s, u: self._call_openai(s, u, cfg),
+            "openclaw": lambda s, u: self._call_openclaw(s, u, cfg),
         }
         pref = cfg.resolve_preferred_provider()
         order = (
-            ["lm_studio", "google_gemini", "openrouter"]
+            ["openclaw", "lm_studio", "google_gemini", "openrouter", "openai"]
             if pref == "auto"
             else [pref]
         )
         for name in order:
             try:
                 return handlers[name](system_prompt, user_prompt), name
+            except LLMProviderUnavailable:
+                # Provider not configured — skip silently in auto mode
+                continue
             except Exception as exc:
                 errors.append(f"{name}: {exc}")
 
+        if not errors:
+            raise LLMError("No providers configured. Add an API key or OAuth token in Settings.")
         raise LLMError("All providers failed: " + " | ".join(errors))
 
     # ------------------------------------------------------------------ helpers
@@ -361,6 +403,68 @@ class LLMService:
             return str(err)[:300]
         text = (response.text or "").strip()
         return text[:800] if text else response.reason
+
+
+    def _call_openclaw(self, system_prompt: str, user_prompt: str, cfg: LLMConfig) -> str:
+        """Call an OpenClaw OAuth gateway.
+
+        OpenClaw is a local/remote proxy that uses a ChatGPT OAuth session token
+        (from ``openclaw models auth login --provider openai-codex``) instead of an
+        ``sk-...`` API key.  Models are named like ``openai-codex/gpt-5.4``.
+
+        The wire format is identical to OpenAI chat completions, so we reuse
+        ``_chat_payload`` and ``_extract_chat_response``.  The OAuth token is sent
+        as a Bearer token, exactly as the standard API key would be.
+        """
+        token = cfg.resolve_openclaw_token()
+        if not token:
+            raise LLMProviderUnavailable(
+                "OPENCLAW_OAUTH_TOKEN missing — paste your OAuth token in Settings → OAuth Gateway"
+            )
+        model = cfg.resolve_openclaw_model()
+        if not model:
+            raise LLMError("OPENCLAW_MODEL is empty — set a model in Settings → OpenClaw (e.g. openai-codex/gpt-5.4)")
+        base_url = cfg.resolve_openclaw_base_url()
+        url = base_url + "/chat/completions"
+        payload = self._chat_payload(system_prompt, user_prompt, model)
+        payload["max_tokens"] = self._max_out
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
+        if response.status_code == 401:
+            raise LLMError(
+                "OpenClaw token expired or invalid (HTTP 401). "
+                "Re-run: openclaw models auth login --provider openai-codex"
+            )
+        response.raise_for_status()
+        return self._extract_chat_response(response.json(), "OpenClaw")
+
+    def _call_openai(self, system_prompt: str, user_prompt: str, cfg: LLMConfig) -> str:
+        """Call the official OpenAI API (or any OpenAI-compatible endpoint).
+
+        Uses the same OpenAI chat-completions wire format as LM Studio, but with
+        the official base URL and enforces a model.  The API key is the standard
+        "sk-..." Bearer token from platform.openai.com.
+        """
+        api_key = cfg.resolve_openai_key()
+        if not api_key:
+            raise LLMProviderUnavailable("OPENAI_API_KEY missing — add it in Settings → OpenAI")
+        model = cfg.resolve_openai_model()
+        if not model:
+            raise LLMError("OPENAI_MODEL is empty — set a model in Settings → OpenAI")
+        base_url = cfg.resolve_openai_base_url()
+        url = base_url + "/chat/completions"
+        payload = self._chat_payload(system_prompt, user_prompt, model)
+        payload["max_tokens"] = self._max_out
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
+        response.raise_for_status()
+        return self._extract_chat_response(response.json(), "OpenAI")
 
 
 llm_service = LLMService()

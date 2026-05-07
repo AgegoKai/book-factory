@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     llm_max_output_tokens: int = 8192
     request_timeout_seconds: int = 120
     # Domyślny routing LLM gdy użytkownik nie nadpisze w UI: auto = kolejka LM→Gemini→OpenRouter
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o-mini"
+    # OpenClaw OAuth gateway (ChatGPT subscription, no API key needed)
+    # W Docker: serwis 'openclaw' startuje automatycznie z docker-compose up
+    openclaw_oauth_token: str = ""
+    openclaw_base_url: str = "http://openclaw:8765/v1"
+    openclaw_model: str = "openai-codex/gpt-5.4"
     preferred_llm_provider: str = "auto"
 
     model_config = SettingsConfigDict(
