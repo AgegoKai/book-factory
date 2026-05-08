@@ -1,17 +1,32 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import secrets
+import time
 import unicodedata
+from base64 import urlsafe_b64encode
 from contextlib import asynccontextmanager
 from pathlib import Path
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlencode
+
+import httpx
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+
+# ── ChatGPT OAuth constants (from @mariozechner/pi-ai, MIT-licensed) ──────────
+_CHATGPT_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+_CHATGPT_AUTHORIZE_URL = "https://auth.openai.com/oauth/authorize"
+_CHATGPT_TOKEN_URL = "https://auth.openai.com/oauth/token"
+_CHATGPT_REDIRECT_URI = "http://localhost:1455/auth/callback"
+_CHATGPT_SCOPE = "openid profile email offline_access"
+# In-memory store: user_id -> {verifier, state, expires_at}
+_oauth_pending: dict[int, dict] = {}
 
 from .bootstrap import ensure_default_admin, init_db, migrate_db
 from .config import settings
@@ -806,6 +821,169 @@ async def test_single_provider(
         return {"ok": False, "error": str(e)[:500]}
     except Exception as e:
         return {"ok": False, "error": f"Nieoczekiwany błąd: {str(e)[:400]}"}
+
+
+# ---------------------------------------------------------------- ChatGPT OAuth
+
+def _pkce_pair() -> tuple[str, str]:
+    """Return (verifier, challenge) for PKCE S256."""
+    verifier = secrets.token_urlsafe(48)
+    digest = hashlib.sha256(verifier.encode()).digest()
+    challenge = urlsafe_b64encode(digest).rstrip(b"=").decode()
+    return verifier, challenge
+
+
+@app.get("/oauth/start")
+def oauth_start(user: User = Depends(current_user)):
+    """Step 1: generate PKCE + state, redirect browser to OpenAI login."""
+    verifier, challenge = _pkce_pair()
+    state = secrets.token_urlsafe(16)
+
+    _oauth_pending[user.id] = {
+        "verifier": verifier,
+        "state": state,
+        "expires_at": time.time() + 600,  # 10 min TTL
+    }
+
+    params = urlencode({
+        "response_type": "code",
+        "client_id": _CHATGPT_CLIENT_ID,
+        "redirect_uri": _CHATGPT_REDIRECT_URI,
+        "scope": _CHATGPT_SCOPE,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "state": state,
+        "id_token_add_organizations": "true",
+        "codex_cli_simplified_flow": "true",
+        "originator": "book-factory",
+    })
+    return RedirectResponse(
+        url=f"{_CHATGPT_AUTHORIZE_URL}?{params}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@app.post("/oauth/exchange")
+async def oauth_exchange(
+    request: Request,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    """Step 2: receive pasted callback URL, exchange code for tokens, save."""
+    body = await request.json()
+    pasted: str = (body.get("url") or "").strip()
+    if not pasted:
+        raise HTTPException(400, "Brak URL")
+
+    # Parse code and state from the pasted URL or raw query string
+    code: str | None = None
+    returned_state: str | None = None
+    try:
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(pasted if "://" in pasted else f"http://x?{pasted}")
+        qs = parse_qs(parsed.query)
+        code = (qs.get("code") or [None])[0]
+        returned_state = (qs.get("state") or [None])[0]
+    except Exception:
+        pass
+
+    if not code:
+        raise HTTPException(400, "Nie znaleziono parametru 'code' w podanym URL")
+
+    pending = _oauth_pending.get(user.id)
+    if not pending or time.time() > pending["expires_at"]:
+        raise HTTPException(400, "Sesja OAuth wygasła — zacznij od nowa")
+    if returned_state and returned_state != pending["state"]:
+        raise HTTPException(400, "Niezgodność state — możliwy atak CSRF")
+
+    verifier = pending["verifier"]
+
+    # Exchange authorization code for access+refresh tokens
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.post(
+            _CHATGPT_TOKEN_URL,
+            data={
+                "grant_type": "authorization_code",
+                "client_id": _CHATGPT_CLIENT_ID,
+                "code": code,
+                "code_verifier": verifier,
+                "redirect_uri": _CHATGPT_REDIRECT_URI,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+    if resp.status_code != 200:
+        err = resp.text[:400]
+        raise HTTPException(502, f"OpenAI odrzuciło wymianę kodu: {resp.status_code} — {err}")
+
+    data = resp.json()
+    access_token = data.get("access_token")
+    refresh_token = data.get("refresh_token")
+    expires_in = data.get("expires_in", 3600)
+
+    if not access_token:
+        raise HTTPException(502, "Brak access_token w odpowiedzi OpenAI")
+
+    # Save to user settings
+    user_settings = _get_user_settings(user, db)
+    user_settings.openclaw_oauth_token = access_token
+    # Store refresh token and expiry in openclaw_base_url field repurposed,
+    # or better: save refresh separately (we add a JSON blob to openclaw_model)
+    # For simplicity store refresh in a dedicated pattern
+    import json as _json
+    user_settings.openclaw_model = user_settings.openclaw_model or "openai-codex/gpt-5.4"
+    # Store refresh token in a small JSON field we overload on openclaw_base_url
+    # Actually let's keep base_url clean and persist refresh via a separate simple approach
+    # We'll store refresh token appended with | separator so we can refresh later
+    user_settings.openclaw_oauth_token = f"{access_token}|{refresh_token or ''}|{int(time.time() + expires_in)}"
+    user_settings.openclaw_base_url = "https://chatgpt.com/backend-api/codex"
+    db.commit()
+
+    del _oauth_pending[user.id]
+
+    return JSONResponse({"ok": True, "message": "Połączono z ChatGPT!"})
+
+
+@app.post("/oauth/refresh")
+async def oauth_refresh(
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    """Refresh the ChatGPT OAuth access token using the stored refresh token."""
+    user_settings = _get_user_settings(user, db)
+    stored = user_settings.openclaw_oauth_token or ""
+    parts = stored.split("|", 2)
+    if len(parts) < 2 or not parts[1]:
+        raise HTTPException(400, "Brak refresh token — zaloguj się ponownie")
+
+    refresh_token = parts[1]
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.post(
+            _CHATGPT_TOKEN_URL,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": _CHATGPT_CLIENT_ID,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(502, f"Odświeżenie tokenu nieudane: {resp.status_code}")
+
+    data = resp.json()
+    access_token = data.get("access_token")
+    new_refresh = data.get("refresh_token", refresh_token)
+    expires_in = data.get("expires_in", 3600)
+
+    if not access_token:
+        raise HTTPException(502, "Brak access_token w odpowiedzi")
+
+    user_settings.openclaw_oauth_token = f"{access_token}|{new_refresh}|{int(time.time() + expires_in)}"
+    db.commit()
+
+    return JSONResponse({"ok": True, "message": "Token odświeżony"})
 
 
 # ---------------------------------------------------------------- health

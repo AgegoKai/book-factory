@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import json
+import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -78,7 +80,15 @@ class LLMConfig:
         return self.openai_model or settings.openai_model
 
     def resolve_openclaw_token(self) -> str:
-        return self.openclaw_oauth_token or settings.openclaw_oauth_token
+        """Return only the access_token portion.
+
+        Tokens are stored as ``access|refresh|expiry_epoch`` by the OAuth
+        exchange endpoint.  Legacy plain tokens (no pipe) are returned as-is.
+        """
+        raw = self.openclaw_oauth_token or settings.openclaw_oauth_token
+        if "|" in raw:
+            return raw.split("|", 1)[0]
+        return raw
 
     def resolve_openclaw_base_url(self) -> str:
         return (self.openclaw_base_url or settings.openclaw_base_url).rstrip("/")
@@ -405,41 +415,96 @@ class LLMService:
         return text[:800] if text else response.reason
 
 
+    @staticmethod
+    def _decode_jwt_payload(token: str) -> dict:
+        """Decode the middle segment of a JWT without verification."""
+        try:
+            parts = token.split(".")
+            if len(parts) != 3:
+                return {}
+            padded = parts[1] + "=" * (4 - len(parts[1]) % 4)
+            return json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _extract_chatgpt_account_id(token: str) -> str | None:
+        payload = LLMService._decode_jwt_payload(token)
+        auth = payload.get("https://api.openai.com/auth") or {}
+        return auth.get("chatgpt_account_id") or auth.get("chatgpt_account_user_id") or None
+
     def _call_openclaw(self, system_prompt: str, user_prompt: str, cfg: LLMConfig) -> str:
-        """Call an OpenClaw OAuth gateway.
+        """Call ChatGPT directly using an OAuth access token.
 
-        OpenClaw is a local/remote proxy that uses a ChatGPT OAuth session token
-        (from ``openclaw models auth login --provider openai-codex``) instead of an
-        ``sk-...`` API key.  Models are named like ``openai-codex/gpt-5.4``.
+        Uses the OpenAI Responses API at https://chatgpt.com/backend-api/codex/responses
+        which is what ChatGPT's web/desktop apps use internally.  The access token
+        comes from the OAuth flow (Settings → ChatGPT Plus / Pro) and must be a valid
+        JWT obtained via the PKCE exchange against auth.openai.com.
 
-        The wire format is identical to OpenAI chat completions, so we reuse
-        ``_chat_payload`` and ``_extract_chat_response``.  The OAuth token is sent
-        as a Bearer token, exactly as the standard API key would be.
+        Model names: gpt-5.4, gpt-5.5, gpt-5.4-mini  (no provider prefix in the body).
         """
         token = cfg.resolve_openclaw_token()
         if not token:
             raise LLMProviderUnavailable(
-                "OPENCLAW_OAUTH_TOKEN missing — paste your OAuth token in Settings → OAuth Gateway"
+                "ChatGPT OAuth token missing — podepnij konto w Ustawieniach → ChatGPT Plus / Pro"
             )
-        model = cfg.resolve_openclaw_model()
-        if not model:
-            raise LLMError("OPENCLAW_MODEL is empty — set a model in Settings → OpenClaw (e.g. openai-codex/gpt-5.4)")
-        base_url = cfg.resolve_openclaw_base_url()
-        url = base_url + "/chat/completions"
-        payload = self._chat_payload(system_prompt, user_prompt, model)
-        payload["max_tokens"] = self._max_out
-        headers = {
+
+        # Resolve model — strip "openai-codex/" prefix if present for the actual API call
+        raw_model = cfg.resolve_openclaw_model() or "gpt-5.4"
+        model_id = raw_model.removeprefix("openai-codex/") if raw_model.startswith("openai-codex/") else raw_model
+
+        account_id = self._extract_chatgpt_account_id(token)
+
+        headers: dict[str, str] = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
+            "Accept": "application/json",
+            "OpenAI-Beta": "responses=experimental",
         }
+        if account_id:
+            headers["chatgpt-account-id"] = account_id
+
+        payload: dict[str, Any] = {
+            "model": model_id,
+            "store": False,
+            "stream": False,
+            "instructions": system_prompt,
+            "input": [{"role": "user", "content": user_prompt}],
+            "text": {"verbosity": "low"},
+            "max_output_tokens": self._max_out,
+        }
+
+        url = "https://chatgpt.com/backend-api/codex/responses"
         response = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
+
         if response.status_code == 401:
             raise LLMError(
-                "OpenClaw token expired or invalid (HTTP 401). "
-                "Re-run: openclaw models auth login --provider openai-codex"
+                "ChatGPT token wygasł lub jest nieprawidłowy (HTTP 401). "
+                "Podepnij konto ponownie w Ustawieniach → ChatGPT Plus / Pro."
+            )
+        if response.status_code == 403:
+            raise LLMError(
+                "ChatGPT odmówił dostępu (HTTP 403) — sprawdź czy konto ma aktywny plan Plus/Pro/Codex."
             )
         response.raise_for_status()
-        return self._extract_chat_response(response.json(), "OpenClaw")
+
+        data = response.json()
+        # Responses API: output is a list of message items
+        output = data.get("output") or []
+        text_parts: list[str] = []
+        for item in output:
+            if isinstance(item, dict) and item.get("type") == "message":
+                for part in (item.get("content") or []):
+                    if isinstance(part, dict) and part.get("type") == "output_text":
+                        text_parts.append(part.get("text", ""))
+        if text_parts:
+            return "\n".join(text_parts).strip()
+
+        # Fallback: try chat completions format (gateway/proxy may use this)
+        try:
+            return self._extract_chat_response(data, "ChatGPT OAuth")
+        except Exception:
+            raise LLMError(f"ChatGPT zwrócił nieoczekiwany format: {str(data)[:300]}")
 
     def _call_openai(self, system_prompt: str, user_prompt: str, cfg: LLMConfig) -> str:
         """Call the official OpenAI API (or any OpenAI-compatible endpoint).

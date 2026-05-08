@@ -90,75 +90,120 @@
     </div>
     <div class="settings-section-body">
 
-      <!-- Option A: OpenAI API (recommended for ChatGPT Plus users) -->
-      <div class="chatgpt-option">
-        <div class="chatgpt-option-header">
-          <span class="chatgpt-option-badge best">Najprostsze</span>
-          <div class="chatgpt-option-title">Klucz API z platform.openai.com</div>
-        </div>
-        <div class="chatgpt-option-body">
-          <p>Masz konto OpenAI (to samo co ChatGPT)? Wystarczy wejść na <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent-light);">platform.openai.com/api-keys</a>, stworzyć klucz i doładować $5–10. GPT-4o-mini kosztuje ok. <strong>$0.20–0.40 za całą książkę</strong>.</p>
-          <p style="color:var(--text-muted);font-size:0.77rem;">Konfiguracja: sekcja <strong>OpenAI</strong> poniżej → wklej klucz → zapisz → wybierz „Tylko OpenAI" w routingu.</p>
-        </div>
-      </div>
+      {% set _has_token = s and s.openclaw_oauth_token and '|' in s.openclaw_oauth_token %}
 
-      <!-- Option B: Free via OpenRouter -->
-      <div class="chatgpt-option">
-        <div class="chatgpt-option-header">
-          <span class="chatgpt-option-badge free">Darmowe</span>
-          <div class="chatgpt-option-title">OpenRouter — darmowe modele (Llama, Gemma)</div>
-        </div>
-        <div class="chatgpt-option-body">
-          <p>Zarejestruj się na <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent-light);">openrouter.ai</a>, skopiuj klucz <code>sk-or-...</code> i wklej w sekcji <strong>OpenRouter</strong> poniżej. Wybierz model <code>google/gemma-3-27b-it:free</code> lub <code>meta-llama/llama-3.3-70b-instruct:free</code> — <strong>koszt $0</strong>.</p>
-        </div>
-      </div>
+      <!-- OAuth connect flow -->
+      <div class="chatgpt-connect-card {{ 'connected' if _has_token else '' }}">
 
-      <!-- Option C: openclaw (advanced, for users who run it locally) -->
-      <div class="chatgpt-option">
-        <div class="chatgpt-option-header">
-          <span class="chatgpt-option-badge advanced">Zaawansowane</span>
-          <div class="chatgpt-option-title">Gateway OAuth (openclaw) — jeśli już go używasz</div>
+        {% if _has_token %}
+        <!-- Connected state -->
+        <div class="chatgpt-connected-banner">
+          <i data-lucide="check-circle" style="width:16px;height:16px;color:var(--emerald);flex-shrink:0;"></i>
+          <div>
+            <strong>Połączono z ChatGPT</strong> — konto podpięte, token aktywny
+            <div style="font-size:0.74rem;margin-top:2px;color:var(--text-muted);">
+              Aby odświeżyć token kliknij poniżej lub podepnij konto ponownie.
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="oauthRefresh()" style="margin-left:auto;flex-shrink:0;">
+            <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Odśwież token
+          </button>
         </div>
-        <div class="chatgpt-option-body">
-          <p>Jeśli masz zainstalowane i skonfigurowane <a href="https://github.com/openclaw/openclaw" target="_blank" style="color:var(--accent-light);">openclaw</a> i gateway działa lokalnie — wklej token poniżej.</p>
-          <div style="margin-top:10px;">
-            <label style="margin-bottom:0;">
-              OAuth Token (z openclaw)
-              <div style="position:relative;margin-top:4px;">
-                <input type="password" name="openclaw_oauth_token" id="openclaw_oauth_token"
-                  value="{{ s.openclaw_oauth_token if s else '' }}"
-                  placeholder="eyJhbGc... lub sess_..."
-                  style="padding-right:42px;font-family:monospace;font-size:0.78rem;">
-                <button type="button" class="key-reveal-btn" onclick="toggleReveal('openclaw_oauth_token', this)" tabindex="-1">
-                  <i data-lucide="eye" style="width:14px;height:14px;"></i>
-                </button>
-              </div>
-              <span class="hint">Pobierz token komendą: <code>openclaw models auth token --provider openai-codex</code></span>
-            </label>
+        {% endif %}
+
+        <!-- Step 1 -->
+        <div class="chatgpt-step">
+          <div class="chatgpt-step-num {{ 'done' if _has_token else '' }}">{{ '✓' if _has_token else '1' }}</div>
+          <div class="chatgpt-step-body">
+            <div class="chatgpt-step-title">Zaloguj się kontem ChatGPT</div>
+            <div class="chatgpt-step-desc">
+              Kliknij przycisk — otworzy się strona logowania OpenAI.
+              Po zalogowaniu przeglądarka spróbuje otworzyć adres <code>localhost:1455</code> — to normalne, nie musisz nic tam instalować.
+              <strong>Skopiuj cały ten adres URL</strong> z paska przeglądarki i wklej go w kroku 2.
+            </div>
+            <a href="/oauth/start" target="_blank" class="btn-chatgpt-connect" style="margin-top:10px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/></svg>
+              {{ 'Zaloguj ponownie' if _has_token else 'Połącz konto ChatGPT →' }}
+            </a>
           </div>
-          <div class="grid-2col" style="margin-top:10px;">
-            <label>
-              Gateway URL
-              <input type="text" name="openclaw_base_url" id="openclaw_base_url"
-                value="{{ s.openclaw_base_url if s else '' }}"
-                placeholder="http://localhost:18789/v1">
-              <span class="hint">Domyślny port gateway: 18789</span>
-            </label>
-            <label>
-              Model
-              <input type="text" name="openclaw_model" id="openclaw_model"
-                value="{{ s.openclaw_model if s else '' }}"
-                placeholder="openai-codex/gpt-5.4">
-            </label>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="chatgpt-step">
+          <div class="chatgpt-step-num">2</div>
+          <div class="chatgpt-step-body">
+            <div class="chatgpt-step-title">Wklej adres URL po zalogowaniu</div>
+            <div class="chatgpt-step-desc">
+              Po zalogowaniu przeglądarka pokaże stronę błędu na adresie
+              <code>http://localhost:1455/auth/callback?code=…</code>.
+              Skopiuj <strong>cały ten adres</strong> i wklej tutaj:
+            </div>
+            <div style="margin-top:8px;display:flex;gap:8px;align-items:flex-start;">
+              <input type="text" id="oauthCallbackUrl"
+                placeholder="http://localhost:1455/auth/callback?code=…&state=…"
+                style="flex:1;font-size:0.76rem;font-family:monospace;border:1.5px dashed color-mix(in srgb,var(--accent-light) 40%,var(--border));"
+                autocomplete="off" autocorrect="off" spellcheck="false">
+              <button type="button" class="btn btn-primary btn-sm" onclick="oauthExchange()" id="oauthExchangeBtn" style="flex-shrink:0;white-space:nowrap;">
+                <i data-lucide="link-2" style="width:13px;height:13px;"></i> Wymień kod
+              </button>
+            </div>
+            <div id="oauthExchangeStatus" style="display:none;margin-top:8px;font-size:0.77rem;padding:6px 10px;border-radius:6px;"></div>
           </div>
-          <div class="provider-test-row" style="margin-top:10px;">
+        </div>
+
+        <!-- Model selector -->
+        <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+          <label style="flex:1;min-width:180px;margin:0;">
+            Model ChatGPT
+            <select name="openclaw_model" style="width:100%;margin-top:4px;">
+              <option value="openai-codex/gpt-5.4" {% if s and s.openclaw_model == 'openai-codex/gpt-5.4' %}selected{% endif %}>GPT-5.4 — zalecany</option>
+              <option value="openai-codex/gpt-5.5" {% if s and s.openclaw_model == 'openai-codex/gpt-5.5' %}selected{% endif %}>GPT-5.5 — najnowszy</option>
+              <option value="openai-codex/gpt-5.4-mini" {% if s and s.openclaw_model == 'openai-codex/gpt-5.4-mini' %}selected{% endif %}>GPT-5.4 Mini — szybszy</option>
+              <option value="" {% if not s or not s.openclaw_model %}selected{% endif %}>Domyślny</option>
+            </select>
+          </label>
+          <div class="provider-test-row" style="margin:0;">
             <button type="button" class="btn btn-secondary btn-sm" onclick="testProvider('openclaw')">
-              <i data-lucide="radio" style="width:13px;height:13px;"></i> Testuj gateway
+              <i data-lucide="radio" style="width:13px;height:13px;"></i> Testuj
             </button>
             <span class="provider-test-result" id="result-openclaw"></span>
           </div>
         </div>
+
+        <!-- Hidden fields for form save -->
+        <input type="hidden" name="openclaw_oauth_token" id="openclaw_oauth_token"
+          value="{{ (s.openclaw_oauth_token or '') if s else '' }}">
+        <input type="hidden" name="openclaw_base_url"
+          value="https://chatgpt.com/backend-api/codex">
+
       </div>
+
+      <!-- Also show quick options -->
+      <details style="margin-top:12px;">
+        <summary style="font-size:0.78rem;color:var(--text-muted);cursor:pointer;user-select:none;">
+          Alternatywy — tańsze lub darmowe modele
+        </summary>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+          <div class="chatgpt-option">
+            <div class="chatgpt-option-header">
+              <span class="chatgpt-option-badge best">$0.30/książka</span>
+              <div class="chatgpt-option-title">OpenAI API — klucz z platform.openai.com</div>
+            </div>
+            <div class="chatgpt-option-body">
+              Wejdź na <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent-light);">platform.openai.com/api-keys</a>, stwórz klucz i doładuj $5. GPT-4o-mini: ~$0.30 za książkę. Konfiguracja w sekcji <strong>OpenAI</strong> poniżej.
+            </div>
+          </div>
+          <div class="chatgpt-option">
+            <div class="chatgpt-option-header">
+              <span class="chatgpt-option-badge free">Darmowe</span>
+              <div class="chatgpt-option-title">OpenRouter — Llama 70B, Gemma 27B</div>
+            </div>
+            <div class="chatgpt-option-body">
+              Zarejestruj się na <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent-light);">openrouter.ai</a>, skopiuj klucz i wklej w sekcji <strong>OpenRouter</strong>. Model <code>meta-llama/llama-3.3-70b-instruct:free</code> — koszt $0.
+            </div>
+          </div>
+        </div>
+      </details>
 
     </div>
   </div>
@@ -602,28 +647,101 @@
   vertical-align: middle;
   border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
 }
+/* ChatGPT OAuth connect card */
+.chatgpt-connect-card {
+  border: 1.5px solid color-mix(in srgb, #f59e0b 30%, var(--border));
+  border-radius: 12px;
+  overflow: hidden;
+}
+.chatgpt-connect-card.connected {
+  border-color: color-mix(in srgb, var(--emerald) 40%, var(--border));
+}
+.chatgpt-connected-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: color-mix(in srgb, var(--emerald) 8%, var(--bg-card));
+  border-bottom: 1px solid color-mix(in srgb, var(--emerald) 20%, var(--border));
+  font-size: 0.8rem;
+}
+.chatgpt-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.chatgpt-step:last-of-type { border-bottom: none; }
+.chatgpt-step-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #f59e0b 15%, transparent);
+  color: #f59e0b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid color-mix(in srgb, #f59e0b 35%, transparent);
+  margin-top: 1px;
+}
+.chatgpt-step-num.done {
+  background: color-mix(in srgb, var(--emerald) 15%, transparent);
+  color: var(--emerald);
+  border-color: color-mix(in srgb, var(--emerald) 40%, transparent);
+}
+.chatgpt-step-body { flex: 1; min-width: 0; }
+.chatgpt-step-title {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.chatgpt-step-desc {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.btn-chatgpt-connect {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #10a37f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.81rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-chatgpt-connect:hover { background: #0d9268; color: #fff; text-decoration: none; }
+/* Option cards (alternatives) */
 .chatgpt-option {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
-  margin-bottom: 10px;
 }
-.chatgpt-option:last-child { margin-bottom: 0; }
 .chatgpt-option-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: color-mix(in srgb, var(--bg-card) 60%, var(--bg));
   border-bottom: 1px solid var(--border);
 }
 .chatgpt-option-title {
-  font-size: 0.82rem;
+  font-size: 0.81rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 .chatgpt-option-badge {
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 6px;
@@ -633,15 +751,12 @@
 }
 .chatgpt-option-badge.best  { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #f59e0b; border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent); }
 .chatgpt-option-badge.free  { background: color-mix(in srgb, var(--emerald) 15%, transparent); color: var(--emerald); border: 1px solid color-mix(in srgb, var(--emerald) 30%, transparent); }
-.chatgpt-option-badge.advanced { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
 .chatgpt-option-body {
-  padding: 12px 14px;
-  font-size: 0.78rem;
+  padding: 10px 12px;
+  font-size: 0.77rem;
   color: var(--text-secondary);
-  line-height: 1.55;
+  line-height: 1.5;
 }
-.chatgpt-option-body p { margin: 0 0 6px; }
-.chatgpt-option-body p:last-child { margin-bottom: 0; }
 .url-paste-wrap input:focus {
   border-color: var(--accent-light);
   background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
@@ -941,6 +1056,61 @@
       if (card.dataset.model === current) card.classList.add('selected');
     });
   })();
+
+  // ── ChatGPT OAuth exchange ─────────────────────────────────────────────────────
+  async function oauthExchange() {
+    const urlInput = document.getElementById('oauthCallbackUrl');
+    const statusEl = document.getElementById('oauthExchangeStatus');
+    const btn = document.getElementById('oauthExchangeBtn');
+    const url = (urlInput?.value || '').trim();
+    if (!url) {
+      statusEl.textContent = 'Wklej URL z paska przeglądarki';
+      statusEl.style.cssText = 'display:block;background:color-mix(in srgb,#f59e0b 12%,transparent);color:#f59e0b;margin-top:8px;font-size:0.77rem;padding:6px 10px;border-radius:6px;';
+      return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" style="width:13px;height:13px;"></i> Wymieniam…';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    statusEl.style.display = 'none';
+    try {
+      const resp = await fetch('/oauth/exchange', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({url}),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.ok) {
+        statusEl.innerHTML = '<strong>✓ ' + data.message + '</strong> — strona zostanie przeładowana…';
+        statusEl.style.cssText = 'display:block;background:color-mix(in srgb,var(--emerald) 12%,transparent);color:var(--emerald);margin-top:8px;font-size:0.77rem;padding:6px 10px;border-radius:6px;';
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        statusEl.textContent = data.detail || data.error || 'Błąd wymiany kodu';
+        statusEl.style.cssText = 'display:block;background:color-mix(in srgb,var(--red,#ef4444) 12%,transparent);color:var(--red,#ef4444);margin-top:8px;font-size:0.77rem;padding:6px 10px;border-radius:6px;';
+      }
+    } catch(e) {
+      statusEl.textContent = 'Błąd sieci: ' + e.message;
+      statusEl.style.cssText = 'display:block;background:color-mix(in srgb,var(--red,#ef4444) 12%,transparent);color:var(--red,#ef4444);margin-top:8px;font-size:0.77rem;padding:6px 10px;border-radius:6px;';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="link-2" style="width:13px;height:13px;"></i> Wymień kod';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+  }
+
+  async function oauthRefresh() {
+    try {
+      const resp = await fetch('/oauth/refresh', {method: 'POST'});
+      const data = await resp.json();
+      if (resp.ok && data.ok) {
+        alert('Token odświeżony!');
+        location.reload();
+      } else {
+        alert('Błąd odświeżania: ' + (data.detail || data.error || 'nieznany'));
+      }
+    } catch(e) {
+      alert('Błąd sieci: ' + e.message);
+    }
+  }
 
   // ── Key reveal toggle ──────────────────────────────────────────────────────────
   function toggleReveal(inputId, btn) {
