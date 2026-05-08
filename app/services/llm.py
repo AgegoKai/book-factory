@@ -476,7 +476,6 @@ class LLMService:
             "include": ["reasoning.encrypted_content"],
             "tool_choice": "auto",
             "parallel_tool_calls": True,
-            "max_output_tokens": self._max_out,
         }
 
         url = "https://chatgpt.com/backend-api/codex/responses"
