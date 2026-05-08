@@ -25,8 +25,9 @@ _CHATGPT_AUTHORIZE_URL = "https://auth.openai.com/oauth/authorize"
 _CHATGPT_TOKEN_URL = "https://auth.openai.com/oauth/token"
 _CHATGPT_REDIRECT_URI = "http://localhost:1455/auth/callback"
 _CHATGPT_SCOPE = "openid profile email offline_access"
-# In-memory store: user_id -> {verifier, state, expires_at}
-_oauth_pending: dict[int, dict] = {}
+# In-memory store keyed by state value: state -> {verifier, user_id, expires_at}
+# Using state as key (not user_id) so multiple simultaneous attempts don't clash.
+_oauth_pending: dict[str, dict] = {}
 
 from .bootstrap import ensure_default_admin, init_db, migrate_db
 from .config import settings
@@ -835,14 +836,25 @@ def _pkce_pair() -> tuple[str, str]:
 
 @app.get("/oauth/start")
 def oauth_start(user: User = Depends(current_user)):
-    """Step 1: generate PKCE + state, redirect browser to OpenAI login."""
-    verifier, challenge = _pkce_pair()
-    state = secrets.token_urlsafe(16)
+    """Step 1: generate PKCE + state, redirect browser to OpenAI login.
 
-    _oauth_pending[user.id] = {
+    Pending entry is keyed by state value (not user_id) so that multiple
+    browser tabs / re-clicks don't overwrite each other's verifier.
+    Old expired entries for this user are pruned before adding the new one.
+    """
+    # Prune stale entries for this user
+    now = time.time()
+    stale = [s for s, v in _oauth_pending.items() if v.get("user_id") == user.id and now > v["expires_at"]]
+    for s in stale:
+        _oauth_pending.pop(s, None)
+
+    verifier, challenge = _pkce_pair()
+    state = secrets.token_urlsafe(24)
+
+    _oauth_pending[state] = {
         "verifier": verifier,
-        "state": state,
-        "expires_at": time.time() + 600,  # 10 min TTL
+        "user_id": user.id,
+        "expires_at": now + 600,  # 10 min TTL
     }
 
     params = urlencode({
@@ -870,31 +882,52 @@ async def oauth_exchange(
     db: Session = Depends(get_db),
 ):
     """Step 2: receive pasted callback URL, exchange code for tokens, save."""
+    from urllib.parse import parse_qs, urlparse
+
     body = await request.json()
     pasted: str = (body.get("url") or "").strip()
     if not pasted:
-        raise HTTPException(400, "Brak URL")
+        raise HTTPException(400, "Brak URL — wklej adres z paska przeglądarki")
 
     # Parse code and state from the pasted URL or raw query string
     code: str | None = None
     returned_state: str | None = None
     try:
-        from urllib.parse import urlparse, parse_qs
-        parsed = urlparse(pasted if "://" in pasted else f"http://x?{pasted}")
-        qs = parse_qs(parsed.query)
+        parsed_url = urlparse(pasted if "://" in pasted else f"http://x?{pasted}")
+        qs = parse_qs(parsed_url.query)
         code = (qs.get("code") or [None])[0]
         returned_state = (qs.get("state") or [None])[0]
     except Exception:
         pass
 
     if not code:
-        raise HTTPException(400, "Nie znaleziono parametru 'code' w podanym URL")
+        raise HTTPException(400, "Nie znaleziono parametru 'code' w podanym URL — skopiuj cały adres z paska przeglądarki")
 
-    pending = _oauth_pending.get(user.id)
-    if not pending or time.time() > pending["expires_at"]:
-        raise HTTPException(400, "Sesja OAuth wygasła — zacznij od nowa")
-    if returned_state and returned_state != pending["state"]:
-        raise HTTPException(400, "Niezgodność state — możliwy atak CSRF")
+    # Look up pending entry by state value (primary) or fall back to any unexpired entry for this user
+    now = time.time()
+    pending: dict | None = None
+
+    if returned_state:
+        pending = _oauth_pending.get(returned_state)
+        if pending and pending.get("user_id") != user.id:
+            pending = None  # belongs to a different user
+    
+    if pending is None:
+        # Fallback: find the most recent unexpired entry for this user (handles missing state param)
+        candidates = [
+            (s, v) for s, v in _oauth_pending.items()
+            if v.get("user_id") == user.id and now <= v["expires_at"]
+        ]
+        if candidates:
+            # pick the newest (highest expires_at)
+            best_state, pending = max(candidates, key=lambda x: x[1]["expires_at"])
+            returned_state = best_state
+
+    if not pending or now > pending["expires_at"]:
+        raise HTTPException(
+            400,
+            "Sesja OAuth wygasła lub nie znaleziono — kliknij ponownie 'Połącz konto ChatGPT' i zacznij od nowa"
+        )
 
     verifier = pending["verifier"]
 
@@ -914,7 +947,7 @@ async def oauth_exchange(
 
     if resp.status_code != 200:
         err = resp.text[:400]
-        raise HTTPException(502, f"OpenAI odrzuciło wymianę kodu: {resp.status_code} — {err}")
+        raise HTTPException(502, f"OpenAI odrzuciło wymianę kodu ({resp.status_code}): {err}")
 
     data = resp.json()
     access_token = data.get("access_token")
@@ -924,22 +957,15 @@ async def oauth_exchange(
     if not access_token:
         raise HTTPException(502, "Brak access_token w odpowiedzi OpenAI")
 
-    # Save to user settings
+    # Save to user settings — store as "access|refresh|expiry_epoch"
     user_settings = _get_user_settings(user, db)
-    user_settings.openclaw_oauth_token = access_token
-    # Store refresh token and expiry in openclaw_base_url field repurposed,
-    # or better: save refresh separately (we add a JSON blob to openclaw_model)
-    # For simplicity store refresh in a dedicated pattern
-    import json as _json
+    user_settings.openclaw_oauth_token = f"{access_token}|{refresh_token or ''}|{int(now + expires_in)}"
     user_settings.openclaw_model = user_settings.openclaw_model or "openai-codex/gpt-5.4"
-    # Store refresh token in a small JSON field we overload on openclaw_base_url
-    # Actually let's keep base_url clean and persist refresh via a separate simple approach
-    # We'll store refresh token appended with | separator so we can refresh later
-    user_settings.openclaw_oauth_token = f"{access_token}|{refresh_token or ''}|{int(time.time() + expires_in)}"
     user_settings.openclaw_base_url = "https://chatgpt.com/backend-api/codex"
     db.commit()
 
-    del _oauth_pending[user.id]
+    # Clean up used pending entry
+    _oauth_pending.pop(returned_state, None)
 
     return JSONResponse({"ok": True, "message": "Połączono z ChatGPT!"})
 
