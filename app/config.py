@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # OpenClaw OAuth gateway (ChatGPT subscription, no API key needed)
     # W Docker: serwis 'openclaw' startuje automatycznie z docker-compose up
     openclaw_oauth_token: str = ""
-    openclaw_base_url: str = "http://openclaw:8765/v1"
+    openclaw_base_url: str = "http://localhost:18789/v1"
     openclaw_model: str = "openai-codex/gpt-5.4"
     preferred_llm_provider: str = "auto"
 

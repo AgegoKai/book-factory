@@ -74,144 +74,92 @@
     </div>
   </div>
 
-  <!-- OpenClaw — ChatGPT OAuth / Codex subscription -->
-  <div class="settings-section" style="border-color: color-mix(in srgb, #f59e0b 25%, var(--border));">
+  <!-- ChatGPT Plus via OpenAI API — practical guide -->
+  <div class="settings-section" style="border-color: color-mix(in srgb, #f59e0b 30%, var(--border));">
     <div class="settings-section-header">
       <div class="settings-section-icon" style="background:color-mix(in srgb, #f59e0b 15%, transparent);">
-        <i data-lucide="key-round" style="width:18px;height:18px;color:#f59e0b;"></i>
+        <i data-lucide="sparkles" style="width:18px;height:18px;color:#f59e0b;"></i>
       </div>
       <div>
-        <div class="settings-section-title">OAuth Gateway — ChatGPT Plus / Pro / Codex <span style="font-size:0.7rem;font-weight:600;color:#f59e0b;background:color-mix(in srgb,#f59e0b 12%,transparent);padding:2px 8px;border-radius:20px;margin-left:8px;">Zalecane</span></div>
-        <div class="settings-section-sub">Masz już plan ChatGPT Plus ($20/mies.) lub Pro? Podepnij go tutaj przez lokalny gateway OAuth — generujesz książki bez oddzielnego rachunku za tokeny API.</div>
+        <div class="settings-section-title">
+          ChatGPT Plus / Pro — jak używać w Book Factory
+          <span class="badge-recommended">Zalecane</span>
+        </div>
+        <div class="settings-section-sub">Masz subskrypcję ChatGPT? Poniżej najłatwiejsze sposoby na generowanie książek z Twoim kontem OpenAI.</div>
       </div>
-      <span class="badge badge-{{ 'ok' if s and s.openclaw_oauth_token else 'missing' }}" style="margin-left:auto;" id="badge-openclaw">
-        {{ 'Token ustawiony' if s and s.openclaw_oauth_token else 'Brak tokena' }}
-      </span>
     </div>
     <div class="settings-section-body">
 
-      <!-- How it works -->
-      <div class="openclaw-explainer">
-        <div class="openclaw-explainer-title">
-          <i data-lucide="info" style="width:13px;height:13px;"></i>
-          Jak to działa
+      <!-- Option A: OpenAI API (recommended for ChatGPT Plus users) -->
+      <div class="chatgpt-option">
+        <div class="chatgpt-option-header">
+          <span class="chatgpt-option-badge best">Najprostsze</span>
+          <div class="chatgpt-option-title">Klucz API z platform.openai.com</div>
         </div>
-        <p>Lokalny gateway OAuth łączy Twoją subskrypcję ChatGPT z Book Factory. Uruchamiasz go raz — potem w Ustawieniach wklejasz token i wybierasz model. Generujesz książki w ramach swojego planu ChatGPT bez oddzielnych rachunków za tokeny.</p>
-      </div>
-
-      <!-- Steps -->
-      <div class="openclaw-setup-steps">
-        <div class="openclaw-step">
-          <div class="step-badge">1</div>
-          <div class="step-body">
-            <div class="step-title">Zainstaluj i uruchom gateway OAuth</div>
-            <div class="step-cmd"><code>docker-compose up -d</code></div>
-            <div class="step-note">Gateway startuje automatycznie jako serwis Dockera na porcie 8765. Jednorazowa konfiguracja.</div>
-          </div>
-        </div>
-        <div class="openclaw-step">
-          <div class="step-badge">2</div>
-          <div class="step-body">
-            <div class="step-title">Zaloguj się kontem ChatGPT w przeglądarce</div>
-            <div style="margin-bottom:4px;">
-              <a href="http://localhost:8765/auth" target="_blank" class="openclaw-auth-btn">
-                <i data-lucide="log-in" style="width:14px;height:14px;"></i>
-                Otwórz stronę autoryzacji →
-              </a>
-            </div>
-            <div class="step-note">Strona logowania ChatGPT/OpenAI. Zaloguj się istniejącym kontem Plus/Pro/Codex.</div>
-          </div>
-        </div>
-        <div class="openclaw-step">
-          <div class="step-badge">3</div>
-          <div class="step-body">
-            <div class="step-title">Skopiuj OAuth token i wklej poniżej</div>
-            <div class="step-note">Po autoryzacji gateway pokazuje token. Wklej go w pole poniżej → Zapisz → gotowe.</div>
-          </div>
+        <div class="chatgpt-option-body">
+          <p>Masz konto OpenAI (to samo co ChatGPT)? Wystarczy wejść na <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent-light);">platform.openai.com/api-keys</a>, stworzyć klucz i doładować $5–10. GPT-4o-mini kosztuje ok. <strong>$0.20–0.40 za całą książkę</strong>.</p>
+          <p style="color:var(--text-muted);font-size:0.77rem;">Konfiguracja: sekcja <strong>OpenAI</strong> poniżej → wklej klucz → zapisz → wybierz „Tylko OpenAI" w routingu.</p>
         </div>
       </div>
 
-      <div class="grid-2col" style="margin-top:18px;">
-        <label>
-          OAuth Token
-          <div style="position:relative;">
-            <input type="password" name="openclaw_oauth_token" id="openclaw_oauth_token"
-              value="{{ s.openclaw_oauth_token if s else '' }}"
-              placeholder="eyJhbGc... lub sess_..."
-              style="padding-right:42px;font-family:monospace;font-size:0.78rem;">
-            <button type="button" class="key-reveal-btn" onclick="toggleReveal('openclaw_oauth_token', this)" tabindex="-1" title="Pokaż/ukryj token">
-              <i data-lucide="eye" style="width:14px;height:14px;"></i>
+      <!-- Option B: Free via OpenRouter -->
+      <div class="chatgpt-option">
+        <div class="chatgpt-option-header">
+          <span class="chatgpt-option-badge free">Darmowe</span>
+          <div class="chatgpt-option-title">OpenRouter — darmowe modele (Llama, Gemma)</div>
+        </div>
+        <div class="chatgpt-option-body">
+          <p>Zarejestruj się na <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent-light);">openrouter.ai</a>, skopiuj klucz <code>sk-or-...</code> i wklej w sekcji <strong>OpenRouter</strong> poniżej. Wybierz model <code>google/gemma-3-27b-it:free</code> lub <code>meta-llama/llama-3.3-70b-instruct:free</code> — <strong>koszt $0</strong>.</p>
+        </div>
+      </div>
+
+      <!-- Option C: openclaw (advanced, for users who run it locally) -->
+      <div class="chatgpt-option">
+        <div class="chatgpt-option-header">
+          <span class="chatgpt-option-badge advanced">Zaawansowane</span>
+          <div class="chatgpt-option-title">Gateway OAuth (openclaw) — jeśli już go używasz</div>
+        </div>
+        <div class="chatgpt-option-body">
+          <p>Jeśli masz zainstalowane i skonfigurowane <a href="https://github.com/openclaw/openclaw" target="_blank" style="color:var(--accent-light);">openclaw</a> i gateway działa lokalnie — wklej token poniżej.</p>
+          <div style="margin-top:10px;">
+            <label style="margin-bottom:0;">
+              OAuth Token (z openclaw)
+              <div style="position:relative;margin-top:4px;">
+                <input type="password" name="openclaw_oauth_token" id="openclaw_oauth_token"
+                  value="{{ s.openclaw_oauth_token if s else '' }}"
+                  placeholder="eyJhbGc... lub sess_..."
+                  style="padding-right:42px;font-family:monospace;font-size:0.78rem;">
+                <button type="button" class="key-reveal-btn" onclick="toggleReveal('openclaw_oauth_token', this)" tabindex="-1">
+                  <i data-lucide="eye" style="width:14px;height:14px;"></i>
+                </button>
+              </div>
+              <span class="hint">Pobierz token komendą: <code>openclaw models auth token --provider openai-codex</code></span>
+            </label>
+          </div>
+          <div class="grid-2col" style="margin-top:10px;">
+            <label>
+              Gateway URL
+              <input type="text" name="openclaw_base_url" id="openclaw_base_url"
+                value="{{ s.openclaw_base_url if s else '' }}"
+                placeholder="http://localhost:18789/v1">
+              <span class="hint">Domyślny port gateway: 18789</span>
+            </label>
+            <label>
+              Model
+              <input type="text" name="openclaw_model" id="openclaw_model"
+                value="{{ s.openclaw_model if s else '' }}"
+                placeholder="openai-codex/gpt-5.4">
+            </label>
+          </div>
+          <div class="provider-test-row" style="margin-top:10px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="testProvider('openclaw')">
+              <i data-lucide="radio" style="width:13px;height:13px;"></i> Testuj gateway
             </button>
+            <span class="provider-test-result" id="result-openclaw"></span>
           </div>
-          <span class="hint">Token z kroku 3 — może być JWT (<code>eyJ...</code>) lub sesyjny</span>
-        </label>
-        <label>
-          Model
-          <input type="text" name="openclaw_model" id="openclaw_model"
-            value="{{ s.openclaw_model if s else '' }}"
-            placeholder="openai-codex/gpt-5.4">
-          <span class="hint">Kliknij kartę modelu poniżej</span>
-        </label>
-      </div>
-
-      <label style="margin-bottom:14px;">
-        Gateway URL <span style="color:var(--text-muted);font-weight:400;">(wypełnione automatycznie przez Docker)</span>
-        <input type="text" name="openclaw_base_url" id="openclaw_base_url"
-          value="{{ s.openclaw_base_url if s else '' }}"
-          placeholder="http://openclaw:8765/v1">
-        <span class="hint">Docker: <code>http://openclaw:8765/v1</code> (domyślne) · Lokalnie bez Dockera: <code>http://localhost:8765/v1</code></span>
-      </label>
-
-      <!-- OpenClaw model picker -->
-      <div style="font-size:0.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:10px;display:flex;align-items:center;gap:6px;">
-        <i data-lucide="list" style="width:13px;height:13px;"></i>
-        Dostępne modele przez OpenClaw
-      </div>
-      <div class="model-picker-grid" id="openclawModelPickerGrid">
-        <div class="model-picker-card openclaw-card" data-model="openai-codex/gpt-5.4" onclick="pickOpenclawModel(this)">
-          <div class="model-picker-top">
-            <span class="model-badge paid" style="background:color-mix(in srgb, #f59e0b 15%, transparent);color:#f59e0b;">Subskrypcja</span>
-          </div>
-          <div class="model-picker-name">GPT-5.4 (Codex)</div>
-          <div class="model-picker-id">openai-codex/gpt-5.4</div>
-          <div class="model-picker-note">Domyślny model Codex. Wysoka jakość generowania tekstu.</div>
-        </div>
-        <div class="model-picker-card openclaw-card" data-model="openai-codex/gpt-5.5" onclick="pickOpenclawModel(this)">
-          <div class="model-picker-top">
-            <span class="model-badge paid" style="background:color-mix(in srgb, #f59e0b 15%, transparent);color:#f59e0b;">Subskrypcja</span>
-          </div>
-          <div class="model-picker-name">GPT-5.5 (Codex)</div>
-          <div class="model-picker-id">openai-codex/gpt-5.5</div>
-          <div class="model-picker-note">Nowszy Codex model — sprawdź dostępność w Twojej subskrypcji.</div>
-        </div>
-        <div class="model-picker-card openclaw-card" data-model="openai-codex/o3" onclick="pickOpenclawModel(this)">
-          <div class="model-picker-top">
-            <span class="model-badge paid" style="background:color-mix(in srgb, #f59e0b 15%, transparent);color:#f59e0b;">Subskrypcja</span>
-          </div>
-          <div class="model-picker-name">o3 (via Codex)</div>
-          <div class="model-picker-id">openai-codex/o3</div>
-          <div class="model-picker-note">Reasoning model — dobry do outline i globalnej edycji.</div>
         </div>
       </div>
-      <div style="font-size:0.75rem;color:var(--text-muted);margin:8px 0 14px;">
-        Dostępne modele zależą od Twojej subskrypcji ChatGPT/Codex.
-        Sprawdź aktualną listę w dokumentacji OpenClaw lub wpisz własny identyfikator modelu.
-      </div>
 
-      <div class="provider-test-row">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="testProvider('openclaw')">
-          <i data-lucide="radio" style="width:13px;height:13px;"></i> Testuj OpenClaw
-        </button>
-        <span class="provider-test-result" id="result-openclaw"></span>
-      </div>
-
-      <div class="openclaw-token-tip">
-        <i data-lucide="alert-triangle" style="width:13px;height:13px;color:#f59e0b;flex-shrink:0;margin-top:1px;"></i>
-        <span><strong>Token wygasa</strong> — jeśli test zwróci błąd 401, wróć na
-          <a href="http://localhost:8765/auth" target="_blank" style="color:#f59e0b;">localhost:8765/auth</a>,
-          zaloguj się ponownie i zaktualizuj token tutaj.
-        </span>
-      </div>
     </div>
   </div>
 
@@ -642,6 +590,81 @@
 </div>
 
 <style>
+/* ── ChatGPT OAuth connect styles ─────────────────────── */
+.badge-recommended {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-left: 8px;
+  vertical-align: middle;
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
+}
+.chatgpt-option {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.chatgpt-option:last-child { margin-bottom: 0; }
+.chatgpt-option-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--bg-card) 60%, var(--bg));
+  border-bottom: 1px solid var(--border);
+}
+.chatgpt-option-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.chatgpt-option-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.chatgpt-option-badge.best  { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #f59e0b; border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent); }
+.chatgpt-option-badge.free  { background: color-mix(in srgb, var(--emerald) 15%, transparent); color: var(--emerald); border: 1px solid color-mix(in srgb, var(--emerald) 30%, transparent); }
+.chatgpt-option-badge.advanced { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent-light); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+.chatgpt-option-body {
+  padding: 12px 14px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.chatgpt-option-body p { margin: 0 0 6px; }
+.chatgpt-option-body p:last-child { margin-bottom: 0; }
+.url-paste-wrap input:focus {
+  border-color: var(--accent-light);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
+}
+.url-extract-status {
+  font-size: 0.76rem;
+  font-weight: 500;
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 7px;
+}
+.url-extract-status.ok {
+  color: var(--emerald);
+  background: color-mix(in srgb, var(--emerald) 10%, transparent);
+}
+.url-extract-status.warn {
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+}
+
 /* ── OpenClaw styles ───────────────────────────────────── */
 .openclaw-explainer {
   background: color-mix(in srgb, #f59e0b 7%, var(--bg-card));
@@ -919,21 +942,6 @@
     });
   })();
 
-  // ── OpenClaw model picker ─────────────────────────────────────────────────────
-  function pickOpenclawModel(card) {
-    document.querySelectorAll('#openclawModelPickerGrid .model-picker-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-    document.getElementById('openclaw_model').value = card.dataset.model;
-  }
-
-  (function highlightCurrentOpenclaw() {
-    const current = (document.getElementById('openclaw_model').value || '').trim();
-    if (!current) return;
-    document.querySelectorAll('#openclawModelPickerGrid .model-picker-card').forEach(card => {
-      if (card.dataset.model === current) card.classList.add('selected');
-    });
-  })();
-
   // ── Key reveal toggle ──────────────────────────────────────────────────────────
   function toggleReveal(inputId, btn) {
     const inp = document.getElementById(inputId);
@@ -979,8 +987,8 @@
       },
       openclaw: {
         api_key:  document.getElementById('openclaw_oauth_token')?.value || '',
-        model:    document.getElementById('openclaw_model')?.value || '',
-        base_url: document.getElementById('openclaw_base_url')?.value || '',
+        model:    document.getElementById('openclaw_model_select')?.value || document.getElementById('openclaw_model_hidden')?.value || '',
+        base_url: document.querySelector('input[name="openclaw_base_url"]')?.value || '',
       },
       copyleaks: {
         api_key: document.getElementById('copyleaks_email')?.value || '',
