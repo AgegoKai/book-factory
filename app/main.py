@@ -884,10 +884,14 @@ async def oauth_exchange(
     """Step 2: receive pasted callback URL, exchange code for tokens, save."""
     from urllib.parse import parse_qs, urlparse
 
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Nieprawidłowy format żądania — odśwież stronę i spróbuj ponownie"}, status_code=400)
+
     pasted: str = (body.get("url") or "").strip()
     if not pasted:
-        raise HTTPException(400, "Brak URL — wklej adres z paska przeglądarki")
+        return JSONResponse({"ok": False, "error": "Brak URL — wklej adres z paska przeglądarki"}, status_code=400)
 
     # Parse code and state from the pasted URL or raw query string
     code: str | None = None
@@ -901,7 +905,7 @@ async def oauth_exchange(
         pass
 
     if not code:
-        raise HTTPException(400, "Nie znaleziono parametru 'code' w podanym URL — skopiuj cały adres z paska przeglądarki")
+        return JSONResponse({"ok": False, "error": "Nie znaleziono parametru 'code' w podanym URL — skopiuj cały adres z paska przeglądarki"}, status_code=400)
 
     # Look up pending entry by state value (primary) or fall back to any unexpired entry for this user
     now = time.time()
@@ -911,7 +915,7 @@ async def oauth_exchange(
         pending = _oauth_pending.get(returned_state)
         if pending and pending.get("user_id") != user.id:
             pending = None  # belongs to a different user
-    
+
     if pending is None:
         # Fallback: find the most recent unexpired entry for this user (handles missing state param)
         candidates = [
@@ -919,35 +923,34 @@ async def oauth_exchange(
             if v.get("user_id") == user.id and now <= v["expires_at"]
         ]
         if candidates:
-            # pick the newest (highest expires_at)
             best_state, pending = max(candidates, key=lambda x: x[1]["expires_at"])
             returned_state = best_state
 
     if not pending or now > pending["expires_at"]:
-        raise HTTPException(
-            400,
-            "Sesja OAuth wygasła lub nie znaleziono — kliknij ponownie 'Połącz konto ChatGPT' i zacznij od nowa"
-        )
+        return JSONResponse({"ok": False, "error": "Sesja OAuth wygasła — kliknij ponownie 'Połącz konto ChatGPT' i zacznij od nowa"}, status_code=400)
 
     verifier = pending["verifier"]
 
     # Exchange authorization code for access+refresh tokens
-    async with httpx.AsyncClient(timeout=20) as client:
-        resp = await client.post(
-            _CHATGPT_TOKEN_URL,
-            data={
-                "grant_type": "authorization_code",
-                "client_id": _CHATGPT_CLIENT_ID,
-                "code": code,
-                "code_verifier": verifier,
-                "redirect_uri": _CHATGPT_REDIRECT_URI,
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                _CHATGPT_TOKEN_URL,
+                data={
+                    "grant_type": "authorization_code",
+                    "client_id": _CHATGPT_CLIENT_ID,
+                    "code": code,
+                    "code_verifier": verifier,
+                    "redirect_uri": _CHATGPT_REDIRECT_URI,
+                },
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"Błąd połączenia z OpenAI: {str(e)[:200]}"}, status_code=502)
 
     if resp.status_code != 200:
         err = resp.text[:400]
-        raise HTTPException(502, f"OpenAI odrzuciło wymianę kodu ({resp.status_code}): {err}")
+        return JSONResponse({"ok": False, "error": f"OpenAI odrzuciło wymianę kodu ({resp.status_code}): {err}"}, status_code=502)
 
     data = resp.json()
     access_token = data.get("access_token")
@@ -955,14 +958,17 @@ async def oauth_exchange(
     expires_in = data.get("expires_in", 3600)
 
     if not access_token:
-        raise HTTPException(502, "Brak access_token w odpowiedzi OpenAI")
+        return JSONResponse({"ok": False, "error": "Brak access_token w odpowiedzi OpenAI"}, status_code=502)
 
     # Save to user settings — store as "access|refresh|expiry_epoch"
-    user_settings = _get_user_settings(user, db)
-    user_settings.openclaw_oauth_token = f"{access_token}|{refresh_token or ''}|{int(now + expires_in)}"
-    user_settings.openclaw_model = user_settings.openclaw_model or "openai-codex/gpt-5.4"
-    user_settings.openclaw_base_url = "https://chatgpt.com/backend-api/codex"
-    db.commit()
+    try:
+        user_settings = _get_user_settings(user, db)
+        user_settings.openclaw_oauth_token = f"{access_token}|{refresh_token or ''}|{int(now + expires_in)}"
+        user_settings.openclaw_model = user_settings.openclaw_model or "openai-codex/gpt-5.4"
+        user_settings.openclaw_base_url = "https://chatgpt.com/backend-api/codex"
+        db.commit()
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"Błąd zapisu ustawień: {str(e)[:200]}"}, status_code=500)
 
     # Clean up used pending entry
     _oauth_pending.pop(returned_state, None)

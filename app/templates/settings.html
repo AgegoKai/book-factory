@@ -1078,17 +1078,24 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({url}),
       });
-      const data = await resp.json();
+      let data = {};
+      const contentType = resp.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await resp.json();
+      } else {
+        const text = await resp.text();
+        data = { ok: false, error: 'Błąd serwera (' + resp.status + '): ' + text.slice(0, 200) };
+      }
       if (resp.ok && data.ok) {
         statusEl.innerHTML = '<strong>✓ ' + data.message + '</strong> — strona zostanie przeładowana…';
         statusEl.style.cssText = 'display:block;background:color-mix(in srgb,var(--emerald) 12%,transparent);color:var(--emerald);margin-top:8px;font-size:0.77rem;padding:6px 10px;border-radius:6px;';
         setTimeout(() => location.reload(), 1500);
       } else {
-        statusEl.textContent = data.detail || data.error || 'Błąd wymiany kodu';
+        statusEl.textContent = data.detail || data.error || 'Błąd wymiany kodu (HTTP ' + resp.status + ')';
         statusEl.style.cssText = 'display:block;background:color-mix(in srgb,var(--red,#ef4444) 12%,transparent);color:var(--red,#ef4444);margin-top:8px;font-size:0.77rem;padding:6px 10px;border-radius:6px;';
       }
     } catch(e) {
-      statusEl.textContent = 'Błąd sieci: ' + e.message;
+      statusEl.textContent = 'Błąd połączenia: ' + e.message;
       statusEl.style.cssText = 'display:block;background:color-mix(in srgb,var(--red,#ef4444) 12%,transparent);color:var(--red,#ef4444);margin-top:8px;font-size:0.77rem;padding:6px 10px;border-radius:6px;';
     } finally {
       btn.disabled = false;
