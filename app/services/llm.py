@@ -437,11 +437,12 @@ class LLMService:
         """Call ChatGPT directly using an OAuth access token.
 
         Uses the OpenAI Responses API at https://chatgpt.com/backend-api/codex/responses
-        which is what ChatGPT's web/desktop apps use internally.  The access token
-        comes from the OAuth flow (Settings → ChatGPT Plus / Pro) and must be a valid
-        JWT obtained via the PKCE exchange against auth.openai.com.
+        with SSE streaming (stream:true is required — the endpoint does not support
+        stream:false).  Event types follow the Responses API spec:
+          - response.output_text.delta  → incremental text
+          - response.done / response.completed → final response with full output
 
-        Model names: gpt-5.4, gpt-5.5, gpt-5.4-mini  (no provider prefix in the body).
+        The access token comes from the OAuth PKCE flow in Settings → ChatGPT Plus / Pro.
         """
         token = cfg.resolve_openclaw_token()
         if not token:
@@ -449,7 +450,7 @@ class LLMService:
                 "ChatGPT OAuth token missing — podepnij konto w Ustawieniach → ChatGPT Plus / Pro"
             )
 
-        # Resolve model — strip "openai-codex/" prefix if present for the actual API call
+        # Strip "openai-codex/" prefix — the actual API uses plain model IDs
         raw_model = cfg.resolve_openclaw_model() or "gpt-5.4"
         model_id = raw_model.removeprefix("openai-codex/") if raw_model.startswith("openai-codex/") else raw_model
 
@@ -458,8 +459,9 @@ class LLMService:
         headers: dict[str, str] = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Accept": "text/event-stream",
             "OpenAI-Beta": "responses=experimental",
+            "originator": "book-factory",
         }
         if account_id:
             headers["chatgpt-account-id"] = account_id
@@ -467,44 +469,77 @@ class LLMService:
         payload: dict[str, Any] = {
             "model": model_id,
             "store": False,
-            "stream": False,
+            "stream": True,
             "instructions": system_prompt,
             "input": [{"role": "user", "content": user_prompt}],
             "text": {"verbosity": "low"},
+            "include": ["reasoning.encrypted_content"],
+            "tool_choice": "auto",
+            "parallel_tool_calls": True,
             "max_output_tokens": self._max_out,
         }
 
         url = "https://chatgpt.com/backend-api/codex/responses"
-        response = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
 
-        if response.status_code == 401:
-            raise LLMError(
-                "ChatGPT token wygasł lub jest nieprawidłowy (HTTP 401). "
-                "Podepnij konto ponownie w Ustawieniach → ChatGPT Plus / Pro."
-            )
-        if response.status_code == 403:
-            raise LLMError(
-                "ChatGPT odmówił dostępu (HTTP 403) — sprawdź czy konto ma aktywny plan Plus/Pro/Codex."
-            )
-        response.raise_for_status()
+        with requests.post(
+            url, headers=headers, json=payload,
+            stream=True, timeout=self.timeout,
+        ) as response:
+            if response.status_code == 401:
+                raise LLMError(
+                    "ChatGPT token wygasł lub jest nieprawidłowy (HTTP 401). "
+                    "Podepnij konto ponownie w Ustawieniach → ChatGPT Plus / Pro."
+                )
+            if response.status_code == 403:
+                raise LLMError(
+                    "ChatGPT odmówił dostępu (HTTP 403) — sprawdź czy konto ma aktywny plan Plus/Pro/Codex."
+                )
+            if not response.ok:
+                body = response.text[:400]
+                raise LLMError(f"ChatGPT zwrócił HTTP {response.status_code}: {body}")
 
-        data = response.json()
-        # Responses API: output is a list of message items
-        output = data.get("output") or []
-        text_parts: list[str] = []
-        for item in output:
-            if isinstance(item, dict) and item.get("type") == "message":
-                for part in (item.get("content") or []):
-                    if isinstance(part, dict) and part.get("type") == "output_text":
-                        text_parts.append(part.get("text", ""))
-        if text_parts:
-            return "\n".join(text_parts).strip()
+            text_parts: list[str] = []
+            for raw_line in response.iter_lines():
+                if not raw_line:
+                    continue
+                line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+                if not line.startswith("data: "):
+                    continue
+                data_str = line[6:].strip()
+                if data_str in ("[DONE]", ""):
+                    break
+                try:
+                    event = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
 
-        # Fallback: try chat completions format (gateway/proxy may use this)
-        try:
-            return self._extract_chat_response(data, "ChatGPT OAuth")
-        except Exception:
-            raise LLMError(f"ChatGPT zwrócił nieoczekiwany format: {str(data)[:300]}")
+                etype = event.get("type", "")
+
+                # Incremental text delta
+                if etype == "response.output_text.delta":
+                    text_parts.append(event.get("delta", ""))
+
+                # Final response object (response.done or response.completed)
+                elif etype in ("response.done", "response.completed"):
+                    resp_obj = event.get("response") or {}
+                    if not text_parts:
+                        # Extract from final output list as fallback
+                        for item in (resp_obj.get("output") or []):
+                            if item.get("type") == "message":
+                                for part in (item.get("content") or []):
+                                    if part.get("type") == "output_text":
+                                        text_parts.append(part.get("text", ""))
+                    break
+
+                # Error event
+                elif etype == "error":
+                    msg = event.get("message") or event.get("error") or str(event)
+                    raise LLMError(f"ChatGPT error: {msg[:300]}")
+
+        result = "".join(text_parts).strip()
+        if not result:
+            raise LLMError("ChatGPT zwrócił pustą odpowiedź")
+        return result
 
     def _call_openai(self, system_prompt: str, user_prompt: str, cfg: LLMConfig) -> str:
         """Call the official OpenAI API (or any OpenAI-compatible endpoint).
