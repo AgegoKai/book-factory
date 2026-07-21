@@ -1,0 +1,46 @@
+name: sam2-click-cutout
+
+services:
+  comfyui-sam2:
+    image: local/comfyui-sam2-click:0.12.2
+    build:
+      context: ..
+      dockerfile: docker-sam2/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8188:8188"
+    gpus: all
+    shm_size: "8gb"
+    environment:
+      HF_HOME: /workspace/cache/huggingface
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+    volumes:
+      - type: bind
+        source: D:/ComfyAi/models
+        target: /workspace/ComfyUI/models
+        read_only: true
+      - type: bind
+        source: D:/ComfyAi/input
+        target: /workspace/ComfyUI/input
+      - type: bind
+        source: D:/ComfyAi/output
+        target: /workspace/ComfyUI/output
+      - type: bind
+        source: D:/ComfyAi/user
+        target: /workspace/ComfyUI/user
+      - type: bind
+        source: D:/ComfyAi/temp
+        target: /workspace/ComfyUI/temp
+      - type: bind
+        source: D:/ComfyAi/hf_cache
+        target: /workspace/cache/huggingface
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8188/system_stats', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s

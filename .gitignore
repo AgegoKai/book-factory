@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+
+# Modele są pobierane osobno i nie trafiają do Git.
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Dane montowane do kontenera.
+models/
+input/
+output/
+user/
+temp/
+hf_cache/
+
+# Lokalne paczki i logi.
+*.zip
+logs/

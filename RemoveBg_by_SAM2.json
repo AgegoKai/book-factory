@@ -1,0 +1,184 @@
+{
+  "id": "3d9fbd74-392e-4f29-9b70-8fbf8a5ee8d4",
+  "revision": 4,
+  "last_node_id": 8,
+  "last_link_id": 10,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [40, 250],
+      "size": [320, 330],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "image", "name": "image", "type": "COMBO", "widget": {"name": "image"}, "link": null},
+        {"localized_name": "upload", "name": "upload", "type": "IMAGEUPLOAD", "widget": {"name": "upload"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "IMAGE", "name": "IMAGE", "type": "IMAGE", "links": [1, 2]},
+        {"localized_name": "MASK", "name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["SAM2_bear_edge_test.png", "image"]
+    },
+    {
+      "id": 2,
+      "type": "SAM2ModelLoader (segment anything2)",
+      "pos": [38, 109],
+      "size": [330, 83],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "model_name", "name": "model_name", "type": "COMBO", "widget": {"name": "model_name"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "SAM2_MODEL", "name": "SAM2_MODEL", "type": "SAM2_MODEL", "links": [3]}
+      ],
+      "properties": {"Node name for S&R": "SAM2ModelLoader (segment anything2)"},
+      "widgets_values": ["sam2_1_hiera_large.pt"]
+    },
+    {
+      "id": 3,
+      "type": "PointsEditor",
+      "pos": [468, 96],
+      "size": [590, 650],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "bg_image", "name": "bg_image", "shape": 7, "type": "IMAGE", "link": 1},
+        {"localized_name": "points_store", "name": "points_store", "type": "STRING", "widget": {"name": "points_store"}, "link": null},
+        {"localized_name": "coordinates", "name": "coordinates", "type": "STRING", "widget": {"name": "coordinates"}, "link": null},
+        {"localized_name": "neg_coordinates", "name": "neg_coordinates", "type": "STRING", "widget": {"name": "neg_coordinates"}, "link": null},
+        {"localized_name": "bbox_store", "name": "bbox_store", "type": "STRING", "widget": {"name": "bbox_store"}, "link": null},
+        {"localized_name": "bboxes", "name": "bboxes", "type": "STRING", "widget": {"name": "bboxes"}, "link": null},
+        {"localized_name": "bbox_format", "name": "bbox_format", "type": "COMBO", "widget": {"name": "bbox_format"}, "link": null},
+        {"localized_name": "width", "name": "width", "type": "INT", "widget": {"name": "width"}, "link": null},
+        {"localized_name": "height", "name": "height", "type": "INT", "widget": {"name": "height"}, "link": null},
+        {"localized_name": "normalize", "name": "normalize", "type": "BOOLEAN", "widget": {"name": "normalize"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "positive_coords", "name": "positive_coords", "type": "STRING", "links": [4]},
+        {"localized_name": "negative_coords", "name": "negative_coords", "type": "STRING", "links": [5]},
+        {"localized_name": "bbox", "name": "bbox", "type": "BBOX", "links": null},
+        {"localized_name": "bbox_mask", "name": "bbox_mask", "type": "MASK", "links": null},
+        {"localized_name": "cropped_image", "name": "cropped_image", "type": "IMAGE", "links": null}
+      ],
+      "properties": {"Node name for S&R": "PointsEditor", "imgData": {"type": "input", "filename": "SAM2_bear_edge_test.png"}, "points": "[]", "neg_points": "[]"},
+      "widgets_values": ["{\"positive\":[],\"negative\":[]}", "[]", "[]", "[{}]", "[{}]", "xyxy", 612, 408, false, "", ""]
+    },
+    {
+      "id": 4,
+      "type": "SAM2PointSegment (segment anything2)",
+      "pos": [1132, 230],
+      "size": [410, 220],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "sam_model", "name": "sam_model", "type": "SAM2_MODEL", "link": 3},
+        {"localized_name": "image", "name": "image", "type": "IMAGE", "link": 2},
+        {"localized_name": "positive_coords", "name": "positive_coords", "type": "STRING", "link": 4},
+        {"localized_name": "close_holes_px", "name": "close_holes_px", "type": "INT", "widget": {"name": "close_holes_px"}, "link": null},
+        {"localized_name": "background_tolerance", "name": "background_tolerance", "type": "FLOAT", "widget": {"name": "background_tolerance"}, "link": null},
+        {"localized_name": "edge_shrink_px", "name": "edge_shrink_px", "type": "INT", "widget": {"name": "edge_shrink_px"}, "link": null},
+        {"localized_name": "edge_feather_px", "name": "edge_feather_px", "type": "FLOAT", "widget": {"name": "edge_feather_px"}, "link": null},
+        {"localized_name": "decontaminate_px", "name": "decontaminate_px", "type": "INT", "widget": {"name": "decontaminate_px"}, "link": null},
+        {"localized_name": "negative_coords", "name": "negative_coords", "shape": 7, "type": "STRING", "link": 5}
+      ],
+      "outputs": [
+        {"localized_name": "clean_rgb", "name": "cutout_preview", "type": "IMAGE", "links": [6]},
+        {"localized_name": "refined_mask", "name": "mask", "type": "MASK", "links": [7]}
+      ],
+      "properties": {"Node name for S&R": "SAM2PointSegment (segment anything2)"},
+      "widgets_values": [5, 0.1, 3, 1.2, 10]
+    },
+    {
+      "id": 5,
+      "type": "JoinImageWithAlpha",
+      "pos": [1600, 250],
+      "size": [280, 72],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "image", "name": "image", "type": "IMAGE", "link": 6},
+        {"localized_name": "alpha", "name": "alpha", "type": "MASK", "link": 10}
+      ],
+      "outputs": [
+        {"localized_name": "IMAGE", "name": "IMAGE", "type": "IMAGE", "links": [8, 9]}
+      ],
+      "properties": {"Node name for S&R": "JoinImageWithAlpha"},
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "PreviewImage",
+      "pos": [1960, 117],
+      "size": [360, 330],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [{"localized_name": "images", "name": "images", "type": "IMAGE", "link": 8}],
+      "outputs": [],
+      "properties": {"Node name for S&R": "PreviewImage"},
+      "widgets_values": []
+    },
+    {
+      "id": 7,
+      "type": "SaveImage",
+      "pos": [1966, 612],
+      "size": [360, 240],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "images", "name": "images", "type": "IMAGE", "link": 9},
+        {"localized_name": "filename_prefix", "name": "filename_prefix", "type": "STRING", "widget": {"name": "filename_prefix"}, "link": null}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "SaveImage"},
+      "widgets_values": ["SAM2_professional_cutout"]
+    },
+    {
+      "id": 8,
+      "type": "InvertMask",
+      "pos": [1550, 440],
+      "size": [210, 50],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "mask", "name": "mask", "type": "MASK", "link": 7}
+      ],
+      "outputs": [
+        {"localized_name": "MASK", "name": "MASK", "type": "MASK", "links": [10]}
+      ],
+      "properties": {"Node name for S&R": "InvertMask"},
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [1, 1, 0, 3, 0, "IMAGE"],
+    [2, 1, 0, 4, 1, "IMAGE"],
+    [3, 2, 0, 4, 0, "SAM2_MODEL"],
+    [4, 3, 0, 4, 2, "STRING"],
+    [5, 3, 1, 4, 8, "STRING"],
+    [6, 4, 0, 5, 0, "IMAGE"],
+    [7, 4, 1, 8, 0, "MASK"],
+    [8, 5, 0, 6, 0, "IMAGE"],
+    [9, 5, 0, 7, 0, "IMAGE"],
+    [10, 8, 0, 5, 1, "MASK"]
+  ],
+  "groups": [
+    {"id": 1, "title": "1. Wybierz obraz i model SAM2", "bounding": [10, 20, 390, 630], "color": "#3f789e", "font_size": 22, "flags": {}},
+    {"id": 2, "title": "2. Lewy klik = obiekt, prawy klik = tło", "bounding": [432, 14, 1140, 790], "color": "#8a5a9e", "font_size": 22, "flags": {}},
+    {"id": 3, "title": "3. Czysta krawędź + PNG z przezroczystością", "bounding": [1570, 30, 800, 780], "color": "#3f9e64", "font_size": 22, "flags": {}}
+  ],
+  "config": {},
+  "extra": {"workflowRendererVersion": "Vue", "ds": {"scale": 0.58, "offset": [760, 250]}},
+  "version": 0.4
+}
