@@ -1,0 +1,107 @@
+{
+  "id": "9e9c64e1-ae21-47fc-a95d-0fb76bb6b810",
+  "revision": 1,
+  "last_node_id": 5,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [40, 220],
+      "size": [330, 330],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "image", "name": "image", "type": "COMBO", "widget": {"name": "image"}, "link": null},
+        {"localized_name": "upload", "name": "upload", "type": "IMAGEUPLOAD", "widget": {"name": "upload"}, "link": null}
+      ],
+      "outputs": [
+        {"localized_name": "IMAGE", "name": "IMAGE", "type": "IMAGE", "links": [1]},
+        {"localized_name": "MASK", "name": "MASK", "type": "MASK", "links": null}
+      ],
+      "properties": {"Node name for S&R": "LoadImage"},
+      "widgets_values": ["RMBG2_bear_edge_test.png", "image"]
+    },
+    {
+      "id": 2,
+      "type": "RMBG",
+      "pos": [450, 230],
+      "size": [390, 360],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"name": "image", "type": "IMAGE", "link": 1}
+      ],
+      "outputs": [
+        {"name": "IMAGE", "type": "IMAGE", "links": [2, 3]},
+        {"name": "MASK", "type": "MASK", "links": null},
+        {"name": "MASK_IMAGE", "type": "IMAGE", "links": [4]}
+      ],
+      "properties": {"Node name for S&R": "RMBG"},
+      "widgets_values": ["RMBG-2.0", 1.0, 1024, 0, -1, false, true, "Alpha", "#222222"]
+    },
+    {
+      "id": 3,
+      "type": "PreviewImage",
+      "pos": [930, 50],
+      "size": [390, 330],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "images", "name": "images", "type": "IMAGE", "link": 2}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "PreviewImage"},
+      "widgets_values": []
+    },
+    {
+      "id": 4,
+      "type": "SaveImage",
+      "pos": [930, 440],
+      "size": [390, 245],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "images", "name": "images", "type": "IMAGE", "link": 3},
+        {"localized_name": "filename_prefix", "name": "filename_prefix", "type": "STRING", "widget": {"name": "filename_prefix"}, "link": null}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "SaveImage"},
+      "widgets_values": ["RMBG2/cutout"]
+    },
+    {
+      "id": 5,
+      "type": "SaveImage",
+      "pos": [1390, 240],
+      "size": [390, 245],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"localized_name": "images", "name": "images", "type": "IMAGE", "link": 4},
+        {"localized_name": "filename_prefix", "name": "filename_prefix", "type": "STRING", "widget": {"name": "filename_prefix"}, "link": null}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "SaveImage"},
+      "widgets_values": ["RMBG2/alpha_mask"]
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "IMAGE"],
+    [2, 2, 0, 3, 0, "IMAGE"],
+    [3, 2, 0, 4, 0, "IMAGE"],
+    [4, 2, 2, 5, 0, "IMAGE"]
+  ],
+  "groups": [
+    {"id": 1, "title": "1. Wybierz obraz", "bounding": [10, 140, 390, 470], "color": "#3f789e", "font_size": 22, "flags": {}},
+    {"id": 2, "title": "2. Automatyczne usuwanie tła RMBG-2.0", "bounding": [420, 140, 450, 500], "color": "#8a5a9e", "font_size": 22, "flags": {}},
+    {"id": 3, "title": "3. PNG RGBA + osobna maska alfa", "bounding": [900, 10, 920, 720], "color": "#3f9e64", "font_size": 22, "flags": {}}
+  ],
+  "config": {},
+  "extra": {"workflowRendererVersion": "Vue", "ds": {"scale": 0.72, "offset": [180, 110]}},
+  "version": 0.4
+}

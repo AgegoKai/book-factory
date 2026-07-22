@@ -1,59 +1,142 @@
-# RemoveBg by SAM2 dla ComfyUI
+# RemoveBg: RMBG-2.0 i SAM2 dla ComfyUI
 
-Gotowy workflow do precyzyjnego usuwania tła w ComfyUI za pomocą **SAM 2.1
-Hiera Large**. Obiekt zaznacza się zwykłym lewym kliknięciem, a tło prawym
-kliknięciem. Wynikiem jest PNG z przezroczystością i oczyszczoną krawędzią,
-bez ciemnej obwódki po kolorze starego tła.
+Repozytorium zawiera dwa niezależne workflow do usuwania tła:
 
-Repozytorium zawiera:
+- **RMBG-2.0** — tryb automatyczny. Wysyłasz obraz, uruchamiasz workflow i dostajesz PNG RGBA oraz osobną maskę alfa. Nie podajesz punktów ani tekstu.
+- **SAM 2.1 Large** — tryb ręczny. Lewym kliknięciem zaznaczasz obiekt, prawym tło. Przydaje się, gdy automat wybierze niewłaściwy obiekt.
 
-- ComfyUI 0.12.2 uruchamiane w Dockerze z obsługą GPU NVIDIA;
-- SAM2 i KJNodes `PointsEditor` do zaznaczania punktami;
-- workflow `RemoveBg by SAM2`;
-- poprawki domykania maski, lekkiego zwężania i zmiękczania krawędzi oraz
-  usuwania koloru starego tła;
-- przykładowy obraz misia i sprawdzony wynik PNG.
+Oba warianty działają w oddzielnych kontenerach, więc mogą być uruchamiane niezależnie:
 
-Checkpoint modelu nie jest przechowywany w repozytorium ani kopiowany do
-obrazu Dockera. Kontener montuje istniejący katalog modeli z dysku hosta tylko
-do odczytu.
+| Usługa | Adres | Zastosowanie |
+|---|---|---|
+| RMBG-2.0 | `http://localhost:8189` | automatyczne usuwanie tła i API |
+| SAM2 | `http://localhost:8188` | interaktywne zaznaczanie punktami |
 
 ## Wymagania
 
 - Windows 10/11;
-- karta NVIDIA; 16 GB VRAM wystarcza dla wariantu Large i obrazów 8K, choć
-  chwilowe zużycie zależy od rozdzielczości;
-- [Docker Desktop dla Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
-  z backendem WSL 2;
+- karta NVIDIA; 16 GB VRAM wystarcza dla ustawień dostarczonych w workflow;
+- [Docker Desktop dla Windows](https://docs.docker.com/desktop/setup/install/windows-install/) z backendem WSL 2;
 - aktualny [sterownik NVIDIA](https://www.nvidia.com/en-us/drivers/).
 
-Obsługa GPU w Docker Desktop na Windows wymaga backendu WSL 2:
-[dokumentacja Docker GPU](https://docs.docker.com/desktop/features/gpu/).
+Obsługa GPU w Docker Desktop na Windows wymaga WSL 2: [dokumentacja Docker GPU](https://docs.docker.com/desktop/features/gpu/).
 
-## Pobranie modelu
+## RMBG-2.0 — automatyczne usuwanie tła
 
-Używany checkpoint:
+### Model i licencja
+
+- [oficjalny RMBG-2.0 firmy BRIA](https://huggingface.co/briaai/RMBG-2.0)
+- [pliki modelu używane przez node ComfyUI-RMBG](https://huggingface.co/1038lab/RMBG-2.0/tree/main)
+- [rozszerzenie ComfyUI-RMBG](https://github.com/1038lab/ComfyUI-RMBG)
+
+Oficjalny model BRIA jest modelem z ograniczonym dostępem. Należy zalogować się na Hugging Face i zaakceptować warunki. Wagi są przeznaczone do użycia niekomercyjnego zgodnie z warunkami podanymi na stronie modelu; zastosowanie komercyjne wymaga odpowiedniej licencji BRIA. Repozytorium nie zawiera wag modelu.
+
+Kontener korzysta z noda `ComfyUI-RMBG`, który przy pierwszym uruchomieniu workflow automatycznie pobiera cztery wymagane pliki do:
+
+```text
+D:\ComfyAi\models\RMBG\RMBG-2.0\
+├── config.json
+├── model.safetensors
+├── birefnet.py
+└── BiRefNet_config.py
+```
+
+Można też pobrać te cztery pliki ręcznie z podanego wyżej repozytorium integracyjnego i umieścić dokładnie w tym katalogu.
+
+### Uruchomienie kontenera RMBG
+
+Uruchom Docker Desktop, a następnie:
+
+```powershell
+cd docker-rmbg
+.\start-docker.ps1
+```
+
+Skrypt tworzy wymagane katalogi na dysku `D:`, buduje kontener i otwiera `http://localhost:8189`.
+
+Bez skryptu:
+
+```powershell
+docker compose -f docker-rmbg\compose.yaml up -d --build
+```
+
+Pierwsza budowa obrazu oraz pierwsze pobranie modelu mogą potrwać kilka–kilkanaście minut. Kolejne uruchomienia używają cache.
+
+### Workflow RMBG w panelu ComfyUI
+
+Plik: `RemoveBg_by_RMBG2.json`
+
+1. Otwórz `http://localhost:8189`.
+2. W panelu **Workflows** wybierz `RemoveBg by RMBG-2.0`.
+3. W `Load Image` wgraj zdjęcie lub wybierz plik z `D:\ComfyAi\input`.
+4. Kliknij **Run**.
+5. Wyniki znajdziesz w `D:\ComfyAi\output\RMBG2`:
+   - `cutout_....png` — obraz z przezroczystym tłem;
+   - `alpha_mask_....png` — osobna maska alfa.
+
+Workflow analizuje obraz w rozdzielczości 1024×1024, po czym skaluje miękką maskę do oryginalnego rozmiaru. Dlatego można podać również obraz 8K bez przetwarzania całej sieci w 8K. Ustawienia `refine_foreground=true`, `mask_blur=0` i `mask_offset=-1` ograniczają ciemną obwódkę na krawędzi obiektu.
+
+Jeśli maska ucina włosy, futro albo bardzo cienkie elementy, zmień `mask_offset` z `-1` na `0`. Jeśli nadal zostaje kolor starego tła, ustaw `mask_offset=-2`.
+
+### RMBG przez API
+
+Plik `RemoveBg_by_RMBG2_API.json` jest gotowym promptem w formacie API ComfyUI. Typowy przebieg wygląda tak:
+
+1. Wyślij plik jako `multipart/form-data`:
+
+```powershell
+curl.exe -X POST `
+  -F "image=@C:\obrazy\mis.png" `
+  -F "overwrite=true" `
+  http://localhost:8189/upload/image
+```
+
+2. W kopii `RemoveBg_by_RMBG2_API.json` ustaw w nodzie `1` nazwę zwróconą przez upload, np. `mis.png`.
+3. Wyślij workflow do kolejki:
+
+```powershell
+$prompt = Get-Content .\RemoveBg_by_RMBG2_API.json -Raw | ConvertFrom-Json
+$job = Invoke-RestMethod `
+  -Method Post `
+  -Uri http://localhost:8189/prompt `
+  -ContentType "application/json" `
+  -Body (@{ prompt = $prompt } | ConvertTo-Json -Depth 100)
+$processId = $job.prompt_id
+$processId
+```
+
+`prompt_id` pełni rolę `processID`. Można go od razu zachować w bazie i później użyć jako identyfikatora kolejki.
+
+4. Sprawdź status:
+
+```powershell
+Invoke-RestMethod "http://localhost:8189/history/$processId"
+```
+
+Brak wpisu oznacza, że zadanie nadal oczekuje albo trwa. Gotowy wpis zawiera sekcję `outputs` z nazwą pliku, `subfolder` i `type`.
+
+5. Pobierz gotowy plik wartościami zwróconymi w `outputs`:
+
+```text
+GET /view?filename=cutout_00001_.png&subfolder=RMBG2&type=output
+```
+
+To są natywne endpointy ComfyUI. Jeśli aplikacja kliencka wymaga własnych ścieżek typu `/jobs/{processID}` i `/jobs/{processID}/download`, można nad nimi dodać cienką usługę API bez zmieniania workflow.
+
+## SAM2 — ręczne zaznaczanie punktami
+
+### Pobranie modelu
 
 - [SAM 2.1 Hiera Large — bezpośrednie pobieranie](https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt)
 - [oficjalne repozytorium Meta SAM2](https://github.com/facebookresearch/sam2)
 
-Utwórz katalog i zapisz plik dokładnie tutaj:
+Docelowa lokalizacja:
 
 ```text
 D:\ComfyAi\models\sam2\sam2.1_hiera_large.pt
 ```
 
-Można to zrobić w PowerShell:
-
-```powershell
-New-Item -ItemType Directory -Force "D:\ComfyAi\models\sam2" | Out-Null
-Invoke-WebRequest `
-  -Uri "https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_large.pt" `
-  -OutFile "D:\ComfyAi\models\sam2\sam2.1_hiera_large.pt"
-```
-
-Jeżeli checkpoint już znajduje się w `D:\ComfyAi\models\checkpoints`, nie
-trzeba pobierać go ponownie. Można utworzyć hardlink:
+Jeżeli checkpoint znajduje się już w `D:\ComfyAi\models\checkpoints`, nie pobieraj go ponownie. Utwórz hardlink:
 
 ```powershell
 New-Item -ItemType Directory -Force "D:\ComfyAi\models\sam2" | Out-Null
@@ -62,131 +145,52 @@ New-Item -ItemType HardLink `
   -Target "D:\ComfyAi\models\checkpoints\sam2.1_hiera_large.pt"
 ```
 
-## Katalogi na hoście
-
-Przed pierwszym uruchomieniem utwórz katalogi:
+### Uruchomienie i użycie SAM2
 
 ```powershell
-$directories = @(
-  "D:\ComfyAi\models\sam2",
-  "D:\ComfyAi\input",
-  "D:\ComfyAi\output",
-  "D:\ComfyAi\user\default\workflows",
-  "D:\ComfyAi\temp",
-  "D:\ComfyAi\hf_cache"
-)
-$directories | ForEach-Object { New-Item -ItemType Directory -Force $_ | Out-Null }
-```
-
-| Zawartość | Lokalizacja na Windows |
-|---|---|
-| checkpoint SAM2.1 Large | `D:\ComfyAi\models\sam2\sam2.1_hiera_large.pt` |
-| obrazy do obróbki | `D:\ComfyAi\input` |
-| gotowe PNG | `D:\ComfyAi\output` |
-| workflow użytkownika | `D:\ComfyAi\user\default\workflows` |
-| pliki tymczasowe | `D:\ComfyAi\temp` |
-| cache Hugging Face | `D:\ComfyAi\hf_cache` |
-
-## Uruchomienie przez Docker
-
-Uruchom Docker Desktop, a następnie w katalogu `docker-sam2` wykonaj:
-
-```powershell
+cd docker-sam2
 .\start-docker.ps1
 ```
 
-Albo bez skryptu:
+Następnie otwórz `http://localhost:8188`, wybierz workflow `RemoveBg by SAM2`, załaduj obraz, zaznacz obiekt lewym przyciskiem, tło prawym przyciskiem i kliknij **Run**.
 
-```powershell
-docker compose up -d --build
-```
+Plik workflow: `RemoveBg_by_SAM2.json`.
 
-Pierwsza budowa pobiera obraz PyTorch/CUDA, ComfyUI i custom nodes, więc może
-potrwać kilkanaście minut. Następne uruchomienia korzystają z cache.
+## Katalogi na hoście
 
-Po uzyskaniu statusu `healthy` otwórz:
-
-- [http://localhost:8188](http://localhost:8188)
-
-Workflow `RemoveBg by SAM2` jest automatycznie kopiowany do katalogu workflow
-przy starcie kontenera. Jeżeli w katalogu wejściowym nie ma jeszcze obrazu
-testowego, kontener skopiuje również `SAM2_bear_edge_test.png` do
-`D:\ComfyAi\input`.
-
-Stan kontenera:
-
-```powershell
-docker compose ps
-docker compose logs -f
-```
-
-Zatrzymanie:
-
-```powershell
-docker compose down
-```
-
-## Użycie workflow
-
-1. Otwórz `RemoveBg by SAM2` w panelu **Workflows**.
-2. W `Load Image` wybierz plik z `D:\ComfyAi\input`.
-3. Na obrazie w `PointsEditor` kliknij lewym przyciskiem kilka miejsc obiektu.
-4. Prawym przyciskiem kliknij miejsca należące do tła, szczególnie w pobliżu
-   trudnych krawędzi.
-5. Kliknij **Run**.
-6. Gotowy PNG znajdziesz w `D:\ComfyAi\output`.
-
-Domyślne ustawienia oczyszczania krawędzi:
-
-| Parametr | Wartość |
-|---|---:|
-| `close_holes_px` | 5 |
-| `background_tolerance` | 0.10 |
-| `edge_shrink_px` | 3 |
-| `edge_feather_px` | 1.2 |
-| `decontaminate_px` | 10 |
-
-Jeżeli maska ucina cienkie elementy, zmniejsz `edge_shrink_px` do 1–2. Jeżeli
-na krawędzi pozostaje kolor starego tła, dodaj czerwone punkty na tym tle albo
-zwiększ `decontaminate_px`.
-
-## Ręczna instalacja w istniejącym ComfyUI
-
-Docker jest zalecany, ale pliki można również skopiować do istniejącej
-instalacji. Najpierw zainstaluj:
-
-- [ComfyUI](https://github.com/Comfy-Org/ComfyUI)
-- [ComfyUI-SAM2](https://github.com/neverbiasu/ComfyUI-SAM2)
-- [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)
-
-Następnie skopiuj pliki z repozytorium:
-
-| Plik z repozytorium | Miejsce docelowe względem katalogu ComfyUI |
+| Zawartość | Lokalizacja na Windows |
 |---|---|
-| `comfyui_sam2_node.py` | `custom_nodes/comfyui-sam2/node.py` |
-| `comfyui_sam2_init.py` | `custom_nodes/comfyui-sam2/__init__.py` |
-| `kjnodes_curve_nodes.py` | `custom_nodes/ComfyUI-KJNodes/nodes/curve_nodes.py` |
-| `kjnodes_point_editor_canvas.js` | `custom_nodes/ComfyUI-KJNodes/web/js/editors/point_editor_canvas.js` |
-| `kjnodes_editor_base.js` | `custom_nodes/ComfyUI-KJNodes/web/js/editors/editor_base.js` |
-| `RemoveBg_by_SAM2.json` | `user/default/workflows/RemoveBg by SAM2.json` |
+| model RMBG-2.0 | `D:\ComfyAi\models\RMBG\RMBG-2.0` |
+| checkpoint SAM2.1 Large | `D:\ComfyAi\models\sam2\sam2.1_hiera_large.pt` |
+| obrazy wejściowe | `D:\ComfyAi\input` |
+| gotowe PNG | `D:\ComfyAi\output` |
+| workflow użytkownika | `D:\ComfyAi\user\default\workflows` |
+| cache Hugging Face | `D:\ComfyAi\hf_cache` |
 
-Po skopiowaniu plików całkowicie zrestartuj ComfyUI i odśwież stronę
-`Ctrl+F5`.
+## Diagnostyka
 
-## Test
+```powershell
+docker compose -f docker-rmbg\compose.yaml ps
+docker compose -f docker-rmbg\compose.yaml logs -f
+docker compose -f docker-sam2\compose.yaml ps
+```
 
-Do katalogu `examples` w repozytorium dołączono:
+Zatrzymanie wybranego kontenera:
 
-- `examples/SAM2_bear_edge_test.png` — obraz wejściowy;
-- `examples/SAM2_docker_bear_test_00001_.png` — wynik z przezroczystością.
+```powershell
+docker compose -f docker-rmbg\compose.yaml down
+docker compose -f docker-sam2\compose.yaml down
+```
 
-Test kontrolny wykazał poprawny kanał alfa i brak czarnych pikseli na miękkiej
-krawędzi obiektu.
+## Testowy miś
+
+`examples/SAM2_bear_edge_test.png` jest kopiowany do katalogu wejściowego obu kontenerów. Workflow RMBG ma go ustawionego jako obraz startowy, dzięki czemu po pobraniu modelu można od razu uruchomić test automatycznego wycinania.
 
 ## Źródła
 
+- [BRIA RMBG-2.0](https://huggingface.co/briaai/RMBG-2.0)
+- [ComfyUI-RMBG](https://github.com/1038lab/ComfyUI-RMBG)
 - [Meta SAM2](https://github.com/facebookresearch/sam2)
 - [ComfyUI](https://github.com/Comfy-Org/ComfyUI)
 - [ComfyUI-SAM2](https://github.com/neverbiasu/ComfyUI-SAM2)
 - [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes)
-- [Docker Desktop GPU](https://docs.docker.com/desktop/features/gpu/)
