@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+models/
+input/
+output/
+temp/
+hf_cache/
+api-results/
