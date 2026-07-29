@@ -9,9 +9,13 @@ workflow, definicję Dockera, skrypty pomocnicze, przykład oraz własny README.
 | Katalog | Opis |
 |---|---|
 | `comfyui/rmbg2` | automatyczne usuwanie tła przez RMBG-2.0, GUI i API |
+| `image-cleanup/lama` | lokalny retusz małych obszarów pędzlem przez LaMa na CUDA |
 
 Szczegółowe polecenia znajdują się w README każdego narzędzia oraz w
 [`comfyui/README.md`](comfyui/README.md).
+
+Narzędzia, które nie są workflow ComfyUI, mają własne instrukcje w swoim
+katalogu, np. [`image-cleanup/lama/README.md`](image-cleanup/lama/README.md).
 
 ## Zasady dodawania kolejnych workflow
 

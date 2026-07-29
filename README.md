@@ -41,3 +41,12 @@ Warunki użycia modelu: https://huggingface.co/briaai/RMBG-2.0
 
 Starsze pliki w katalogu głównym pozostają wyłącznie dla zgodności z
 wcześniejszą wersją repozytorium. Nowe workflow należy dodawać do `nls-tools`.
+
+## LaMa Cleanup
+
+Lokalny retusz pędzlem do usuwania włosków, kropek, zabrudzeń i innych małych
+elementów. Działa na karcie NVIDIA przez CUDA i udostępnia panel pod
+`http://localhost:8090`.
+
+Dokumentacja i uruchomienie:
+[`nls-tools/image-cleanup/lama/README.md`](nls-tools/image-cleanup/lama/README.md)
