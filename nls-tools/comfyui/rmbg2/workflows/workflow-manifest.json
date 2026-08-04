@@ -1,15 +1,21 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "rmbg2-remove-background",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engine": "comfyui",
-  "workflow": "RemoveBg_by_RMBG2_API.json",
-  "inputs": {
-    "image": "LoadImage.image"
+  "workflow": {
+    "api": "RemoveBg_by_RMBG2_API.json",
+    "ui": "RemoveBg_by_RMBG2.json",
+    "sha256": "4dea8c3d1d8088bf414280bd5b6ca4de8cc0efe661580c8645c64cdb1b278194"
   },
-  "outputs": {
-    "transparent_image": "SaveImage.cutout",
-    "alpha_mask": "SaveImage.alpha_mask"
+  "contract": {
+    "inputs": {
+      "image": {"type": "image", "required": true, "binding": {"nodeId": "1", "input": "image"}}
+    },
+    "outputs": {
+      "transparent_image": {"type": "image/png", "binding": {"nodeId": "3", "output": "images"}},
+      "alpha_mask": {"type": "image/png", "binding": {"nodeId": "4", "output": "images"}}
+    }
   },
   "parameters": {
     "process_res": 1024,

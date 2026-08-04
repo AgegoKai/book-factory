@@ -1,12 +1,28 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "lama-cleanup",
   "version": "1.1.0",
   "profile": "light",
   "protocol": {
     "kind": "iopaint-http",
     "basePath": "/api/v1",
-    "readinessPath": "/api/v1/server-config"
+    "readinessPath": "/api/v1/server-config",
+    "inpaintPath": "/api/v1/inpaint"
+  },
+  "contract": {
+    "inputs": {
+      "image": {"type": "image/base64", "required": true},
+      "mask": {"type": "image/base64", "required": true},
+      "roi_margin": {"type": "integer", "required": false, "default": 128}
+    },
+    "outputs": {
+      "image": {"type": "image/png", "sameDimensionsAs": "image"}
+    },
+    "invariants": {
+      "maskPolarity": "white-is-edit",
+      "outsideMaskMaxDelta": 0,
+      "modelsDownloadedAtRequestTime": false
+    }
   },
   "model": {
     "id": "big-lama",
@@ -14,6 +30,7 @@
   },
   "resources": {
     "requiresCuda": true,
-    "recommendedVramGb": 8
+    "recommendedVramGb": 8,
+    "maxTestedLongEdgePx": 4096
   }
 }

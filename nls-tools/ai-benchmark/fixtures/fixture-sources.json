@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "policy": "Only CC0 or worldwide public-domain product photographs; no production data.",
+  "sources": [
+    {
+      "id": "white-ceramic-cup",
+      "commonsTitle": "File:White Ceramic Cup (28217866307).jpg",
+      "categories": ["white-product", "hard-edge"],
+      "sam2Points": [{"x": 820, "y": 980}]
+    },
+    {
+      "id": "transparent-glass-bottle",
+      "commonsTitle": "File:Transparent glass unguent bottle, glass - Museo Egizio Turin C 3381 p01.jpg",
+      "categories": ["transparency", "hard-edge"],
+      "sam2Points": [{"x": 800, "y": 700}]
+    },
+    {
+      "id": "headphones-white-background",
+      "commonsTitle": "File:Headphones on white background.jpg",
+      "categories": ["thin-detail", "cable", "white-background"],
+      "sam2Points": [{"x": 55, "y": 155}, {"x": 178, "y": 155}, {"x": 116, "y": 22}]
+    },
+    {
+      "id": "worn-shoe-alpha",
+      "commonsTitle": "File:Worn Shoe.png",
+      "categories": ["alpha-ground-truth", "hard-edge", "irregular-edge"]
+    },
+    {
+      "id": "ldpe-bottle",
+      "commonsTitle": "File:LDPE bottle.jpg",
+      "categories": ["translucency", "hard-edge"],
+      "sam2Points": [{"x": 438, "y": 800}]
+    }
+  ]
+}

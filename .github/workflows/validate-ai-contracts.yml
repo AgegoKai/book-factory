@@ -1,0 +1,28 @@
+name: Validate AI contracts
+
+on:
+  pull_request:
+    paths:
+      - "docker-sam2/**"
+      - "nls-tools/ai-runtime/**"
+      - "nls-tools/comfyui/rmbg2/**"
+      - "nls-tools/image-cleanup/lama/**"
+      - ".github/workflows/validate-ai-contracts.yml"
+  push:
+    paths:
+      - "docker-sam2/**"
+      - "nls-tools/ai-runtime/**"
+      - "nls-tools/comfyui/rmbg2/**"
+      - "nls-tools/image-cleanup/lama/**"
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python nls-tools/ai-runtime/scripts/validate_ai_contracts.py
+      - run: python nls-tools/ai-benchmark/scripts/validate_fixtures.py
+      - run: python -m unittest discover -s nls-tools/ai-runtime/tests -p 'test_*.py'

@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "storage": "repository-local; never production",
+  "sources": [
+    {
+      "id": "white-ceramic-cup",
+      "commonsTitle": "File:White Ceramic Cup (28217866307).jpg",
+      "categories": [
+        "white-product",
+        "hard-edge"
+      ],
+      "sam2Points": [
+        {
+          "x": 820,
+          "y": 980
+        }
+      ],
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:White_Ceramic_Cup_(28217866307).jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/5/59/White_Ceramic_Cup_%2828217866307%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Saif Selim",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "original": "fixtures/source/white-ceramic-cup-original.jpg",
+      "sourceSha256": "5d7870f78a72b0757b4e2400b1dbbce7ad754ea2c1cab7c5c3982b0a2cc03600",
+      "normalizedSha256": "1ebb851d0479c4ae2bed2d30649782dc4b3560aea8e149f00d40abb08fc98492",
+      "normalized": "fixtures/source/white-ceramic-cup.png",
+      "width": 1600,
+      "height": 1233
+    },
+    {
+      "id": "transparent-glass-bottle",
+      "commonsTitle": "File:Transparent glass unguent bottle, glass - Museo Egizio Turin C 3381 p01.jpg",
+      "categories": [
+        "transparency",
+        "hard-edge"
+      ],
+      "sam2Points": [
+        {
+          "x": 800,
+          "y": 700
+        }
+      ],
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Transparent_glass_unguent_bottle,_glass_-_Museo_Egizio_Turin_C_3381_p01.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/5/59/Transparent_glass_unguent_bottle%2C_glass_-_Museo_Egizio_Turin_C_3381_p01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "original": "fixtures/source/transparent-glass-bottle-original.jpg",
+      "sourceSha256": "030b467b4f085c4254d32a192c84127a2af2d20c8b05eb0c763fc2e05a5a521d",
+      "normalizedSha256": "4aac304fc239199e11aa508623dce66ad4b72259fb6a0e779e37d5098451e5c2",
+      "normalized": "fixtures/source/transparent-glass-bottle.png",
+      "width": 1600,
+      "height": 1158
+    },
+    {
+      "id": "headphones-white-background",
+      "commonsTitle": "File:Headphones on white background.jpg",
+      "categories": [
+        "thin-detail",
+        "cable",
+        "white-background"
+      ],
+      "sam2Points": [
+        {
+          "x": 55,
+          "y": 155
+        },
+        {
+          "x": 178,
+          "y": 155
+        },
+        {
+          "x": 116,
+          "y": 22
+        }
+      ],
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Headphones_on_white_background.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/6/63/Headphones_on_white_background.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Sprinno",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "original": "fixtures/source/headphones-white-background-original.jpg",
+      "sourceSha256": "dc1f336ce2c3836a12bc8ceed5df943a1ebd13068b9ccc25eef56a3dbdad45f8",
+      "normalizedSha256": "a2879ec47567cd39496e3e67bf54132a45ec876e6cee40be387b962cf12c310e",
+      "normalized": "fixtures/source/headphones-white-background.png",
+      "width": 233,
+      "height": 263
+    },
+    {
+      "id": "worn-shoe-alpha",
+      "commonsTitle": "File:Worn Shoe.png",
+      "categories": [
+        "alpha-ground-truth",
+        "hard-edge",
+        "irregular-edge"
+      ],
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:Worn_Shoe.png",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/9/9a/Worn_Shoe.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Aupajo",
+      "license": "CC0",
+      "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      "original": "fixtures/source/worn-shoe-alpha-original.png",
+      "sourceSha256": "56c3c4f755b6b8787bdadac7992077aab796338ef88b253b16a7cf783bde245b",
+      "normalizedSha256": "8c9b9369baf143939fd9228231207b48b47213cdfe4b5a179bafd23060d5c571",
+      "normalized": "fixtures/source/worn-shoe-alpha.png",
+      "width": 1600,
+      "height": 1313
+    },
+    {
+      "id": "ldpe-bottle",
+      "commonsTitle": "File:LDPE bottle.jpg",
+      "categories": [
+        "translucency",
+        "hard-edge"
+      ],
+      "sam2Points": [
+        {
+          "x": 438,
+          "y": 800
+        }
+      ],
+      "descriptionUrl": "https://commons.wikimedia.org/wiki/File:LDPE_bottle.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/0/0d/LDPE_bottle.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "author": "Cjp24",
+      "license": "Public domain",
+      "licenseUrl": "",
+      "original": "fixtures/source/ldpe-bottle-original.jpg",
+      "sourceSha256": "9145e8e9af67b80ee70d343d626e5e514e9534440070ba0e5994cf7b822a7afc",
+      "normalizedSha256": "de2398b564ff08747045ed90956f258516f8637b54eaa037fd85fbb9254783c6",
+      "normalized": "fixtures/source/ldpe-bottle.png",
+      "width": 875,
+      "height": 1600
+    }
+  ],
+  "cases": [
+    {
+      "id": "worn-shoe-alpha-remove-bg",
+      "task": "remove-background",
+      "input": "fixtures/generated/worn-shoe-alpha-composite.png",
+      "goldenMask": "fixtures/generated/worn-shoe-alpha-golden-mask.png",
+      "sam2Points": [
+        {
+          "x": 628,
+          "y": 848
+        },
+        {
+          "x": 1072,
+          "y": 460
+        },
+        {
+          "x": 1000,
+          "y": 460
+        }
+      ],
+      "sam2NegativePoints": [
+        {
+          "x": 2,
+          "y": 2
+        }
+      ],
+      "inputSha256": "2d2c022e744c53a1cb01d13e222fd3a7e635aef6aa359d6d3a232832e19f5711",
+      "goldenMaskSha256": "19a4fc04121ffb565175bb564b8a8fc84c7cdfcce2be49d96a0ae7aa942677df"
+    },
+    {
+      "id": "white-ceramic-cup-remove-bg",
+      "task": "remove-background",
+      "categories": [
+        "white-product",
+        "hard-edge"
+      ],
+      "input": "fixtures/source/white-ceramic-cup.png",
+      "sam2Points": [
+        {
+          "x": 820,
+          "y": 980
+        }
+      ],
+      "sam2NegativePoints": [
+        {
+          "x": 2,
+          "y": 2
+        }
+      ],
+      "inputSha256": "1ebb851d0479c4ae2bed2d30649782dc4b3560aea8e149f00d40abb08fc98492"
+    },
+    {
+      "id": "transparent-glass-bottle-remove-bg",
+      "task": "remove-background",
+      "categories": [
+        "transparency",
+        "hard-edge"
+      ],
+      "input": "fixtures/source/transparent-glass-bottle.png",
+      "sam2Points": [
+        {
+          "x": 800,
+          "y": 700
+        }
+      ],
+      "sam2NegativePoints": [
+        {
+          "x": 2,
+          "y": 2
+        }
+      ],
+      "inputSha256": "4aac304fc239199e11aa508623dce66ad4b72259fb6a0e779e37d5098451e5c2"
+    },
+    {
+      "id": "headphones-white-background-remove-bg",
+      "task": "remove-background",
+      "categories": [
+        "thin-detail",
+        "cable",
+        "white-background"
+      ],
+      "input": "fixtures/source/headphones-white-background.png",
+      "sam2Points": [
+        {
+          "x": 55,
+          "y": 155
+        },
+        {
+          "x": 178,
+          "y": 155
+        },
+        {
+          "x": 116,
+          "y": 22
+        }
+      ],
+      "sam2NegativePoints": [
+        {
+          "x": 2,
+          "y": 2
+        }
+      ],
+      "inputSha256": "a2879ec47567cd39496e3e67bf54132a45ec876e6cee40be387b962cf12c310e"
+    },
+    {
+      "id": "ldpe-bottle-remove-bg",
+      "task": "remove-background",
+      "categories": [
+        "translucency",
+        "hard-edge"
+      ],
+      "input": "fixtures/source/ldpe-bottle.png",
+      "sam2Points": [
+        {
+          "x": 438,
+          "y": 800
+        }
+      ],
+      "sam2NegativePoints": [
+        {
+          "x": 2,
+          "y": 2
+        }
+      ],
+      "inputSha256": "de2398b564ff08747045ed90956f258516f8637b54eaa037fd85fbb9254783c6"
+    },
+    {
+      "id": "white-ceramic-cup-retouch-thin",
+      "task": "retouch",
+      "maskKind": "thin",
+      "input": "fixtures/generated/white-ceramic-cup-retouch-thin-input.png",
+      "mask": "fixtures/generated/white-ceramic-cup-retouch-thin-mask.png",
+      "expected": "fixtures/generated/white-ceramic-cup-retouch-expected.png",
+      "hdStrategy": "Crop",
+      "roiMargin": 96,
+      "inputSha256": "16764efe7aa836f6d6f725f8f13f70fb02e23183c46f2ddaf37b554588b8a214",
+      "maskSha256": "d05a2fa896e3131977d8285ce8ae74f7b73b66ec83c0ed44ef8ab36c25d3d7b6",
+      "expectedSha256": "1ebb851d0479c4ae2bed2d30649782dc4b3560aea8e149f00d40abb08fc98492"
+    },
+    {
+      "id": "white-ceramic-cup-retouch-thick",
+      "task": "retouch",
+      "maskKind": "thick",
+      "input": "fixtures/generated/white-ceramic-cup-retouch-thick-input.png",
+      "mask": "fixtures/generated/white-ceramic-cup-retouch-thick-mask.png",
+      "expected": "fixtures/generated/white-ceramic-cup-retouch-expected.png",
+      "hdStrategy": "Crop",
+      "roiMargin": 128,
+      "inputSha256": "edf76f46f11a4787e0c3af05f3381846a26aa195df282592dd555ecfad3a276d",
+      "maskSha256": "cbf519c792ab99f8baa3814422c6254e6e7ba3b4f67e4f651aabdba51ba2826d",
+      "expectedSha256": "1ebb851d0479c4ae2bed2d30649782dc4b3560aea8e149f00d40abb08fc98492"
+    },
+    {
+      "id": "white-ceramic-cup-retouch-full",
+      "task": "retouch",
+      "maskKind": "full",
+      "input": "fixtures/generated/white-ceramic-cup-retouch-full-input.png",
+      "mask": "fixtures/generated/white-ceramic-cup-retouch-full-mask.png",
+      "expected": "fixtures/generated/white-ceramic-cup-retouch-expected.png",
+      "hdStrategy": "Original",
+      "roiMargin": 0,
+      "inputSha256": "293f15a5a2be4df6067417b58c8ad6ba736d62cb6339cc0c1a41d2850cde5236",
+      "maskSha256": "acb289c38ea7fc815c1db86e7e62f7a4fefda373319e20c40bb5a829c3580fa2",
+      "expectedSha256": "1ebb851d0479c4ae2bed2d30649782dc4b3560aea8e149f00d40abb08fc98492"
+    }
+  ]
+}

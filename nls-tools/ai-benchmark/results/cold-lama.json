@@ -1,0 +1,9 @@
+{
+  "worker": "lama",
+  "image": "local/lama-cleanup:1.1.0",
+  "containerReadinessSeconds": 11.3654,
+  "firstInferenceSeconds": 1.9294,
+  "vramBaselineMiB": 4868,
+  "vramPeakMiB": 5228,
+  "vramDeltaMiB": 360
+}

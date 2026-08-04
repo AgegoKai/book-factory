@@ -1,23 +1,26 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "sam2-point-segmentation",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "engine": "comfyui",
-  "workflow": "RemoveBg_by_SAM2.json",
-  "inputs": {
-    "image": "LoadImage.image",
-    "points": "PointsEditor.points"
+  "workflow": {
+    "api": "workflows/RemoveBg_by_SAM2_API.json",
+    "ui": "../RemoveBg_by_SAM2.json",
+    "sha256": "f96a7c273c8efb20c47e751ee258dc67defc394f67b89d01e112d50d1f281e19"
   },
-  "outputs": {
-    "transparent_image": "SaveImage.images"
+  "contract": {
+    "inputs": {
+      "image": {"type": "image", "required": true, "binding": {"nodeId": "1", "input": "image"}},
+      "points": {"type": "point-list", "required": true, "binding": {"nodeId": "4", "input": "positive_coords"}},
+      "negative_points": {"type": "point-list", "required": false, "binding": {"nodeId": "4", "input": "negative_coords"}}
+    },
+    "outputs": {
+      "transparent_image": {"type": "image/png", "binding": {"nodeId": "7", "output": "images"}},
+      "alpha_mask": {"type": "image/png", "binding": {"nodeId": "9", "output": "images"}}
+    }
   },
   "requirements": {
-    "models": [
-      {
-        "id": "sam2.1-hiera-large",
-        "sha256": "2647878d5dfa5098f2f8649825738a9345572bae2d4350a2468587ece47dd318"
-      }
-    ],
+    "models": [{"id": "sam2.1-hiera-large", "version": "2.1", "sha256": "2647878d5dfa5098f2f8649825738a9345572bae2d4350a2468587ece47dd318"}],
     "customNodes": {
       "ComfyUI-KJNodes": "e27a505b3ba6ce42687fe00500deda103d9d6071",
       "ComfyUI-SAM2": "e75eabcc12efd4aa9b5c6f72274d759973d36d4d"

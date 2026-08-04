@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "longEdgePx": 2048,
+      "width": 2048,
+      "height": 1578,
+      "latencySeconds": 1.3012,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4534,
+      "vramDeltaMiB": 94,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 5.477734057835238
+    },
+    {
+      "longEdgePx": 3072,
+      "width": 3072,
+      "height": 2367,
+      "latencySeconds": 2.3842,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4606,
+      "vramDeltaMiB": 166,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 6.440023356690023
+    },
+    {
+      "longEdgePx": 4096,
+      "width": 4096,
+      "height": 3156,
+      "latencySeconds": 3.6886,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4646,
+      "vramDeltaMiB": 206,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 7.09851858797056
+    }
+  ]
+}

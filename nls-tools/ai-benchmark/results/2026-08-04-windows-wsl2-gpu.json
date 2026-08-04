@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-08-04T13:29:12Z",
+  "repeats": 3,
+  "records": [
+    {
+      "worker": "rmbg2",
+      "fixture": "worn-shoe-alpha-remove-bg",
+      "run": 1,
+      "latencySeconds": 1.2335,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 7864,
+      "vramDeltaMiB": 3424,
+      "maskIoU": 0.9073492748461481,
+      "maskF1": 0.951424352961612
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "worn-shoe-alpha-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.6088,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0,
+      "maskIoU": 0.9073492748461481,
+      "maskF1": 0.951424352961612
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "worn-shoe-alpha-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.3411,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0,
+      "maskIoU": 0.9073492748461481,
+      "maskF1": 0.951424352961612
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "white-ceramic-cup-remove-bg",
+      "run": 1,
+      "latencySeconds": 0.5913,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 7864,
+      "vramDeltaMiB": 3424
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "white-ceramic-cup-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.3033,
+      "vramBaselineMiB": 7864,
+      "vramPeakMiB": 7864,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "white-ceramic-cup-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.3079,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "transparent-glass-bottle-remove-bg",
+      "run": 1,
+      "latencySeconds": 0.634,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 7800,
+      "vramDeltaMiB": 3360
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "transparent-glass-bottle-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.3502,
+      "vramBaselineMiB": 7800,
+      "vramPeakMiB": 7800,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "transparent-glass-bottle-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.3136,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "headphones-white-background-remove-bg",
+      "run": 1,
+      "latencySeconds": 0.3255,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 7864,
+      "vramDeltaMiB": 3424
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "headphones-white-background-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.3219,
+      "vramBaselineMiB": 7864,
+      "vramPeakMiB": 7864,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "headphones-white-background-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.3403,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "ldpe-bottle-remove-bg",
+      "run": 1,
+      "latencySeconds": 0.6285,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 7864,
+      "vramDeltaMiB": 3424
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "ldpe-bottle-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.3169,
+      "vramBaselineMiB": 7864,
+      "vramPeakMiB": 7864,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "rmbg2",
+      "fixture": "ldpe-bottle-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.3064,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "sam2",
+      "fixture": "worn-shoe-alpha-remove-bg",
+      "run": 1,
+      "latencySeconds": 4.435,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4952,
+      "vramDeltaMiB": 512,
+      "maskIoU": 0.8800117201129355,
+      "maskF1": 0.9361768447486825
+    },
+    {
+      "worker": "sam2",
+      "fixture": "worn-shoe-alpha-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.6241,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0,
+      "maskIoU": 0.8800117201129355,
+      "maskF1": 0.9361768447486825
+    },
+    {
+      "worker": "sam2",
+      "fixture": "worn-shoe-alpha-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.6301,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0,
+      "maskIoU": 0.8800117201129355,
+      "maskF1": 0.9361768447486825
+    },
+    {
+      "worker": "sam2",
+      "fixture": "white-ceramic-cup-remove-bg",
+      "run": 1,
+      "latencySeconds": 4.3025,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4952,
+      "vramDeltaMiB": 512
+    },
+    {
+      "worker": "sam2",
+      "fixture": "white-ceramic-cup-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.6003,
+      "vramBaselineMiB": 4952,
+      "vramPeakMiB": 4952,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "sam2",
+      "fixture": "white-ceramic-cup-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.6426,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "sam2",
+      "fixture": "transparent-glass-bottle-remove-bg",
+      "run": 1,
+      "latencySeconds": 3.9602,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4952,
+      "vramDeltaMiB": 512
+    },
+    {
+      "worker": "sam2",
+      "fixture": "transparent-glass-bottle-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.3295,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "sam2",
+      "fixture": "transparent-glass-bottle-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.3151,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "sam2",
+      "fixture": "headphones-white-background-remove-bg",
+      "run": 1,
+      "latencySeconds": 0.5918,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4952,
+      "vramDeltaMiB": 512
+    },
+    {
+      "worker": "sam2",
+      "fixture": "headphones-white-background-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.3306,
+      "vramBaselineMiB": 4952,
+      "vramPeakMiB": 4952,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "sam2",
+      "fixture": "headphones-white-background-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.3185,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "sam2",
+      "fixture": "ldpe-bottle-remove-bg",
+      "run": 1,
+      "latencySeconds": 3.0338,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4952,
+      "vramDeltaMiB": 512
+    },
+    {
+      "worker": "sam2",
+      "fixture": "ldpe-bottle-remove-bg",
+      "run": 2,
+      "latencySeconds": 0.3287,
+      "vramBaselineMiB": 4952,
+      "vramPeakMiB": 4952,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "sam2",
+      "fixture": "ldpe-bottle-remove-bg",
+      "run": 3,
+      "latencySeconds": 0.3734,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4440,
+      "vramDeltaMiB": 0
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-thin",
+      "run": 1,
+      "latencySeconds": 0.8329,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4744,
+      "vramDeltaMiB": 304,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 3.9856219763862106
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-thin",
+      "run": 2,
+      "latencySeconds": 0.8251,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4744,
+      "vramDeltaMiB": 304,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 3.9856219763862106
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-thin",
+      "run": 3,
+      "latencySeconds": 0.7886,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4744,
+      "vramDeltaMiB": 304,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 3.9856219763862106
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-thick",
+      "run": 1,
+      "latencySeconds": 0.7816,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4560,
+      "vramDeltaMiB": 120,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 6.068448267035273
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-thick",
+      "run": 2,
+      "latencySeconds": 0.7737,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4560,
+      "vramDeltaMiB": 120,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 6.068448267035273
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-thick",
+      "run": 3,
+      "latencySeconds": 0.84,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 4560,
+      "vramDeltaMiB": 120,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 6.068448267035273
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-full",
+      "run": 1,
+      "latencySeconds": 1.2679,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 6802,
+      "vramDeltaMiB": 2362,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 12.438564829734666
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-full",
+      "run": 2,
+      "latencySeconds": 1.0161,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 6802,
+      "vramDeltaMiB": 2362,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 12.438564829734666
+    },
+    {
+      "worker": "lama",
+      "fixture": "white-ceramic-cup-retouch-full",
+      "run": 3,
+      "latencySeconds": 1.0241,
+      "vramBaselineMiB": 4440,
+      "vramPeakMiB": 6802,
+      "vramDeltaMiB": 2362,
+      "sameDimensions": true,
+      "outsideMaskMaxDelta": 0,
+      "insideMaskMeanError": 12.438564829734666
+    }
+  ]
+}

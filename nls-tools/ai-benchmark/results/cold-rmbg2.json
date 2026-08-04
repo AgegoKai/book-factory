@@ -1,0 +1,9 @@
+{
+  "worker": "rmbg2",
+  "image": "local/comfyui-rmbg2:0.13.0",
+  "containerReadinessSeconds": 14.3883,
+  "firstInferenceSeconds": 5.8134,
+  "vramBaselineMiB": 4665,
+  "vramPeakMiB": 8798,
+  "vramDeltaMiB": 4133
+}

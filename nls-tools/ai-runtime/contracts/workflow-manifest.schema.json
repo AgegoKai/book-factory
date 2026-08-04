@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://njs.local/contracts/workflow-manifest.schema.json",
+  "title": "NJS ComfyUI workflow manifest",
+  "type": "object",
+  "required": ["schemaVersion", "id", "version", "engine", "workflow", "contract", "requirements"],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "engine": {"const": "comfyui"},
+    "workflow": {
+      "type": "object",
+      "required": ["api", "sha256"],
+      "properties": {
+        "api": {"type": "string"},
+        "ui": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "contract": {
+      "type": "object",
+      "required": ["inputs", "outputs"],
+      "properties": {
+        "inputs": {"type": "object", "minProperties": 1},
+        "outputs": {"type": "object", "minProperties": 1}
+      }
+    },
+    "requirements": {
+      "type": "object",
+      "required": ["models"],
+      "properties": {"models": {"type": "array", "minItems": 1}}
+    }
+  }
+}

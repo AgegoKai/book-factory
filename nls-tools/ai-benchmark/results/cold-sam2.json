@@ -1,0 +1,9 @@
+{
+  "worker": "sam2",
+  "image": "local/comfyui-sam2-click:0.13.0",
+  "containerReadinessSeconds": 16.7037,
+  "firstInferenceSeconds": 10.9676,
+  "vramBaselineMiB": 4665,
+  "vramPeakMiB": 6335,
+  "vramDeltaMiB": 1670
+}

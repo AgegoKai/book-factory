@@ -1,0 +1,44 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {"image": "benchmark.png"}
+  },
+  "2": {
+    "class_type": "SAM2ModelLoader (segment anything2)",
+    "inputs": {"model_name": "sam2_1_hiera_large.pt"}
+  },
+  "4": {
+    "class_type": "SAM2PointSegment (segment anything2)",
+    "inputs": {
+      "sam_model": ["2", 0],
+      "image": ["1", 0],
+      "positive_coords": "[{\"x\":256,\"y\":256}]",
+      "negative_coords": "[]",
+      "close_holes_px": 5,
+      "background_tolerance": 0.1,
+      "edge_shrink_px": 3,
+      "edge_feather_px": 1.2,
+      "decontaminate_px": 10
+    }
+  },
+  "5": {
+    "class_type": "InvertMask",
+    "inputs": {"mask": ["4", 1]}
+  },
+  "6": {
+    "class_type": "JoinImageWithAlpha",
+    "inputs": {"image": ["4", 0], "alpha": ["5", 0]}
+  },
+  "7": {
+    "class_type": "SaveImage",
+    "inputs": {"images": ["6", 0], "filename_prefix": "SAM2/cutout"}
+  },
+  "8": {
+    "class_type": "MaskToImage",
+    "inputs": {"mask": ["4", 1]}
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {"images": ["8", 0], "filename_prefix": "SAM2/alpha_mask"}
+  }
+}
