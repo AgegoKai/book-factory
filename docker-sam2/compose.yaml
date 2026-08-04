@@ -2,45 +2,68 @@ name: sam2-click-cutout
 
 services:
   comfyui-sam2:
-    image: local/comfyui-sam2-click:0.12.2
+    profiles: ["light"]
+    image: ${NJS_SAM2_IMAGE:-local/comfyui-sam2-click:0.13.0}
     build:
       context: ..
       dockerfile: docker-sam2/Dockerfile
+      args:
+        COMFYUI_REPOSITORY: ${NJS_COMFYUI_REPOSITORY:-https://github.com/Comfy-Org/ComfyUI.git}
+        COMFYUI_REPOSITORY_MIRROR: ${NJS_COMFYUI_REPOSITORY_MIRROR:-}
+        KJNODES_REPOSITORY: ${NJS_KJNODES_REPOSITORY:-https://github.com/kijai/ComfyUI-KJNodes.git}
+        KJNODES_REPOSITORY_MIRROR: ${NJS_KJNODES_REPOSITORY_MIRROR:-}
+        SAM2_REPOSITORY: ${NJS_SAM2_NODE_REPOSITORY:-https://github.com/neverbiasu/ComfyUI-SAM2.git}
+        SAM2_REPOSITORY_MIRROR: ${NJS_SAM2_NODE_REPOSITORY_MIRROR:-}
     restart: unless-stopped
     ports:
-      - "8188:8188"
+      - "${NJS_AI_BIND_ADDRESS:-127.0.0.1}:${NJS_SAM2_PORT:-8188}:8188"
     gpus: all
     shm_size: "8gb"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=2g
+    stop_grace_period: 30s
     environment:
       HF_HOME: /workspace/cache/huggingface
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
       PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+      NJS_SAM2_MODEL_SHA256: 2647878d5dfa5098f2f8649825738a9345572bae2d4350a2468587ece47dd318
     volumes:
       - type: bind
-        source: D:/ComfyAi/models
+        source: ${NJS_AI_MODELS_ROOT:?Set NJS_AI_MODELS_ROOT in nls-tools/ai-runtime/.env}/comfyui
         target: /workspace/ComfyUI/models
         read_only: true
       - type: bind
-        source: D:/ComfyAi/input
+        source: ${NJS_AI_DATA_ROOT:?Set NJS_AI_DATA_ROOT in nls-tools/ai-runtime/.env}/workers/sam2/input
         target: /workspace/ComfyUI/input
       - type: bind
-        source: D:/ComfyAi/output
+        source: ${NJS_AI_DATA_ROOT:?Set NJS_AI_DATA_ROOT in nls-tools/ai-runtime/.env}/workers/sam2/output
         target: /workspace/ComfyUI/output
       - type: bind
-        source: D:/ComfyAi/user
+        source: ${NJS_AI_DATA_ROOT:?Set NJS_AI_DATA_ROOT in nls-tools/ai-runtime/.env}/workers/sam2/user
         target: /workspace/ComfyUI/user
       - type: bind
-        source: D:/ComfyAi/temp
+        source: ${NJS_AI_DATA_ROOT:?Set NJS_AI_DATA_ROOT in nls-tools/ai-runtime/.env}/workers/sam2/temp
         target: /workspace/ComfyUI/temp
       - type: bind
-        source: D:/ComfyAi/hf_cache
+        source: ${NJS_AI_CACHE_ROOT:?Set NJS_AI_CACHE_ROOT in nls-tools/ai-runtime/.env}/sam2/huggingface
         target: /workspace/cache/huggingface
+    networks:
+      njs-ai:
+        aliases: ["sam2-worker"]
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8188/system_stats', timeout=3)"
-      interval: 15s
-      timeout: 5s
-      retries: 20
-      start_period: 90s
+      test: ["CMD", "python", "/usr/local/bin/worker-healthcheck"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
+      start_period: 120s
+
+networks:
+  njs-ai:
+    external: true
+    name: ${NJS_AI_NETWORK:-njs-ai}

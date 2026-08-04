@@ -1,81 +1,70 @@
 # RemoveBg przez RMBG-2.0
 
-Automatyczny wariant usuwania tła. Podajesz całe zdjęcie, a model zwraca PNG
-RGBA z przezroczystym tłem oraz osobną maskę alfa. Nie wymaga punktów ani
-promptu tekstowego.
+Automatyczny worker usuwania tła. Zwraca PNG RGBA i osobną maskę alfa. Jest
+częścią profilu `light` opisanego w `nls-tools/ai-runtime/README.md`.
 
-## Zawartość
+## Powtarzalność, źródła i licencja
 
-```text
-rmbg2/
-├── docker/       # Dockerfile, Compose i skrypt startowy
-├── workflows/    # workflow GUI oraz prompt API
-├── scripts/      # klient API w Pythonie
-└── examples/     # mały obraz testowy
+- ComfyUI i custom node są przypięte pełnymi commitami;
+- repozytoria mają konfigurowalne adresy podstawowe i mirrory, ale checkout
+  musi odpowiadać przypiętemu commitowi;
+- cztery artefakty RMBG-2.0 mają stałe rozmiary i SHA-256 w manifeście modelu;
+- adres Hugging Face zawiera niezmienny revision, a prywatny mirror może być
+  ustawiony przez `NJS_AI_MODEL_MIRROR`;
+- model jest przygotowywany przed startem i montowany tylko do odczytu;
+- entrypoint sprawdza pełne SHA-256, a readiness sprawdza model, CUDA i node.
+
+Wagi BRIA RMBG-2.0 do samodzielnego hostowania nie są automatycznie objęte
+licencją komercyjną. Po potwierdzeniu właściwej licencji dla planowanego użycia
+ustaw w ignorowanym `nls-tools/ai-runtime/.env`:
+
+```dotenv
+NJS_RMBG2_LICENSE_ACCEPTED=1
 ```
 
-## Uruchomienie z repozytorium
+Bez jawnej akceptacji inicjalizator nie pobierze ani nie przeniesie wag.
 
-Wymagane są Docker Desktop z WSL 2, sterownik NVIDIA oraz działająca obsługa
-GPU w Dockerze. Z głównego katalogu repozytorium uruchom:
+## Uruchomienie
+
+Wymagane są Docker Desktop z WSL2 i NVIDIA GPU. Wybierz odpowiedni przykład z
+`nls-tools/ai-runtime`, zapisz go jako `.env`, przejrzyj rooty hosta i uruchom z
+głównego katalogu repozytorium:
 
 ```powershell
-.\nls-tools\comfyui\rmbg2\docker\start-docker.ps1
+.\nls-tools\comfyui\rmbg2\docker\start-docker.ps1 -OpenBrowser
 ```
 
-Panel ComfyUI i API będą dostępne pod adresem:
+Bez `-OpenBrowser` skrypt tylko buduje, uruchamia, czeka na healthcheck i
+wykonuje smoke test. Domyślny adres to `http://127.0.0.1:8189`; port jest
+związany z loopbackiem. Gateway powinien korzystać z sieci `njs-ai` i aliasu
+`rmbg2-worker`.
+
+Trwały układ jest względny wobec wybranych rootów hosta:
 
 ```text
-http://localhost:8189
+${NJS_AI_MODELS_ROOT}/comfyui/RMBG
+${NJS_AI_DATA_ROOT}/workers/rmbg2/{input,output,user,temp}
+${NJS_AI_CACHE_ROOT}/rmbg2
 ```
 
-Pierwsza budowa pobiera środowisko CUDA i ComfyUI. Przy pierwszym wykonaniu
-workflow pobierane są również wagi RMBG-2.0 do:
+Zweryfikowane pliki z opcjonalnych `NJS_AI_MODEL_IMPORT_ROOTS` są kopiowane;
+źródłowe katalogi nie są modyfikowane ani usuwane.
 
-```text
-D:\ComfyAi\models\RMBG\RMBG-2.0
-```
-
-Wagi nie są przechowywane w repozytorium. Informacje o modelu i licencji:
-https://huggingface.co/briaai/RMBG-2.0
-
-Rozszerzenie ComfyUI i pliki zgodne z jego automatycznym downloaderem:
-https://github.com/1038lab/ComfyUI-RMBG oraz
-https://huggingface.co/1038lab/RMBG-2.0/tree/main
-
-## Użycie przez API
-
-Z głównego katalogu repozytorium:
+## API
 
 ```powershell
 python .\nls-tools\comfyui\rmbg2\scripts\rmbg_api_client.py `
-  "C:\obrazy\zdjecie.png" `
-  --output-dir "D:\ComfyAi\api-results"
+  ".\zdjecie.png" `
+  --output-dir ".\api-results"
 ```
 
-Skrypt wykonuje cały przebieg:
-
-1. `POST /upload/image` — wysyła zdjęcie;
-2. `POST /prompt` — uruchamia workflow i odbiera `prompt_id` jako `processID`;
-3. `GET /history/{processID}` — czeka na zakończenie;
-4. `GET /view` — pobiera wycięty PNG i maskę alfa.
-
-Każde zadanie otrzymuje osobny katalog wynikowy nazwany jego `processID`.
-
-## Użycie przez GUI
-
-Otwórz `http://localhost:8189`, wybierz workflow `RemoveBg by RMBG-2.0`,
-wgraj zdjęcie w `Load Image` i kliknij `Run`. Pliki zostaną zapisane w:
-
-```text
-D:\ComfyAi\output\RMBG2
-```
-
-Domyślne parametry krawędzi to `refine_foreground=true`, `mask_blur=0` oraz
-`mask_offset=-1`.
-
-## Zatrzymanie
+Klient wykonuje upload, kolejkuje wersjonowany workflow, czeka po `processID`
+i pobiera wycięty PNG oraz maskę do osobnego katalogu zadania. W GUI wybierz
+`RemoveBg by RMBG-2.0`; domyślne parametry krawędzi to
+`refine_foreground=true`, `mask_blur=0`, `mask_offset=-1`.
 
 ```powershell
-docker compose -f .\nls-tools\comfyui\rmbg2\docker\compose.yaml down
+docker compose -f .\nls-tools\comfyui\rmbg2\docker\compose.yaml --profile light logs -f
+docker compose -f .\nls-tools\comfyui\rmbg2\docker\compose.yaml --profile light down
+python .\nls-tools\ai-runtime\scripts\smoke_light_workers.py rmbg2
 ```

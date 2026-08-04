@@ -1,41 +1,22 @@
+param([switch]$OpenBrowser)
+
 $ErrorActionPreference = "Stop"
-
-$directories = @(
-    "D:\NlsTools\lama\models",
-    "D:\NlsTools\lama\input",
-    "D:\NlsTools\lama\output"
-)
-$directories | ForEach-Object { New-Item -ItemType Directory -Force $_ | Out-Null }
-
 $composeFile = Join-Path $PSScriptRoot "compose.yaml"
+$runtimeRoot = Join-Path $PSScriptRoot "..\..\..\ai-runtime"
 
-docker info *> $null
-if ($LASTEXITCODE -ne 0) {
-    throw "Docker Desktop nie działa. Uruchom Docker Desktop i spróbuj ponownie."
-}
+& (Join-Path $runtimeRoot "scripts\Initialize-NjsAiRuntime.ps1") -Worker lama
 
-docker compose -f $composeFile up -d --build
+docker compose -f $composeFile --profile light config --quiet
+if ($LASTEXITCODE -ne 0) { throw "Konfiguracja Compose LaMa jest nieprawidłowa." }
+
+docker compose -f $composeFile --profile light up -d --build --wait --wait-timeout 300
 if ($LASTEXITCODE -ne 0) {
     throw "Budowanie lub uruchomienie LaMa Cleanup nie powiodło się."
 }
 
-$ready = $false
-Write-Host "Czekam na załadowanie LaMa na GPU..."
-for ($attempt = 0; $attempt -lt 90; $attempt++) {
-    try {
-        Invoke-WebRequest -Uri "http://localhost:8090/api/v1/server-config" `
-            -UseBasicParsing -TimeoutSec 3 | Out-Null
-        $ready = $true
-        break
-    }
-    catch {
-        Start-Sleep -Seconds 2
-    }
-}
+$port = if ($env:NJS_LAMA_PORT) { $env:NJS_LAMA_PORT } else { "8090" }
+& python (Join-Path $runtimeRoot "scripts\smoke_light_workers.py") lama --base-url "http://127.0.0.1:$port"
+if ($LASTEXITCODE -ne 0) { throw "Smoke test LaMa nie powiódł się." }
 
-if (-not $ready) {
-    throw "LaMa nie zgłosiła gotowości. Sprawdź logi poleceniem: docker compose -f `"$composeFile`" logs"
-}
-
-Write-Host "LaMa Cleanup działa na GPU pod adresem http://localhost:8090"
-Start-Process "http://localhost:8090"
+Write-Host "LaMa Cleanup jest gotowe pod adresem http://127.0.0.1:$port"
+if ($OpenBrowser) { Start-Process "http://127.0.0.1:$port" }

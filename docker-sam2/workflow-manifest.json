@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "sam2-point-segmentation",
+  "version": "1.0.0",
+  "engine": "comfyui",
+  "workflow": "RemoveBg_by_SAM2.json",
+  "inputs": {
+    "image": "LoadImage.image",
+    "points": "PointsEditor.points"
+  },
+  "outputs": {
+    "transparent_image": "SaveImage.images"
+  },
+  "requirements": {
+    "models": [
+      {
+        "id": "sam2.1-hiera-large",
+        "sha256": "2647878d5dfa5098f2f8649825738a9345572bae2d4350a2468587ece47dd318"
+      }
+    ],
+    "customNodes": {
+      "ComfyUI-KJNodes": "e27a505b3ba6ce42687fe00500deda103d9d6071",
+      "ComfyUI-SAM2": "e75eabcc12efd4aa9b5c6f72274d759973d36d4d"
+    }
+  }
+}

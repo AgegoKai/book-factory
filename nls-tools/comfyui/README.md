@@ -7,7 +7,9 @@ do ich odtworzenia na innym komputerze.
 |---|---|---:|---|
 | [RMBG-2.0](rmbg2/README.md) | automatyczne usuwanie tła | 8189 | `.\nls-tools\comfyui\rmbg2\docker\start-docker.ps1` |
 
-Kontener korzysta z GPU NVIDIA i katalogów na dysku `D:`.
+Kontener korzysta z GPU NVIDIA. Modele, dane i cache mają wymagane,
+konfigurowalne rooty hosta; Compose nie zakłada konkretnego dysku ani systemu
+operacyjnego. Przykłady znajdują się w `nls-tools/ai-runtime`.
 
 Workflow w formacie edytora ComfyUI znajduje się w katalogu `workflows`.
 Pliki z dopiskiem `_API` mają format promptu akceptowany przez endpoint

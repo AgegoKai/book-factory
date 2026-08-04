@@ -1,26 +1,22 @@
+param([switch]$OpenBrowser)
+
 $ErrorActionPreference = "Stop"
-
-$directories = @(
-    "D:\ComfyAi\models\RMBG",
-    "D:\ComfyAi\input",
-    "D:\ComfyAi\output",
-    "D:\ComfyAi\user\default\workflows",
-    "D:\ComfyAi\temp-rmbg",
-    "D:\ComfyAi\hf_cache"
-)
-$directories | ForEach-Object { New-Item -ItemType Directory -Force $_ | Out-Null }
-
 $composeFile = Join-Path $PSScriptRoot "compose.yaml"
+$runtimeRoot = Join-Path $PSScriptRoot "..\..\..\ai-runtime"
 
-docker info *> $null
-if ($LASTEXITCODE -ne 0) {
-    throw "Docker Desktop nie działa. Uruchom Docker Desktop i spróbuj ponownie."
-}
+& (Join-Path $runtimeRoot "scripts\Initialize-NjsAiRuntime.ps1") -Worker rmbg2
 
-docker compose -f $composeFile up -d --build
+docker compose -f $composeFile --profile light config --quiet
+if ($LASTEXITCODE -ne 0) { throw "Konfiguracja Compose RMBG-2.0 jest nieprawidłowa." }
+
+docker compose -f $composeFile --profile light up -d --build --wait --wait-timeout 300
 if ($LASTEXITCODE -ne 0) {
     throw "Budowanie lub uruchomienie kontenera RMBG-2.0 nie powiodło się."
 }
 
-Write-Host "ComfyUI RMBG-2.0 uruchamia się pod adresem http://localhost:8189"
-Start-Process "http://localhost:8189"
+$port = if ($env:NJS_RMBG2_PORT) { $env:NJS_RMBG2_PORT } else { "8189" }
+& python (Join-Path $runtimeRoot "scripts\smoke_light_workers.py") rmbg2 --base-url "http://127.0.0.1:$port"
+if ($LASTEXITCODE -ne 0) { throw "Smoke test RMBG-2.0 nie powiódł się." }
+
+Write-Host "ComfyUI RMBG-2.0 jest gotowe pod adresem http://127.0.0.1:$port"
+if ($OpenBrowser) { Start-Process "http://127.0.0.1:$port" }

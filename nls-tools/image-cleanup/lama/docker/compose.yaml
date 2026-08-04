@@ -2,34 +2,57 @@ name: lama-cleanup
 
 services:
   lama-cleanup:
-    image: local/lama-cleanup:1.0.0
+    profiles: ["light"]
+    image: ${NJS_LAMA_IMAGE:-local/lama-cleanup:1.1.0}
     build:
       context: ..
       dockerfile: docker/Dockerfile
     restart: unless-stopped
     ports:
-      - "8090:8080"
+      - "${NJS_AI_BIND_ADDRESS:-127.0.0.1}:${NJS_LAMA_PORT:-8090}:8080"
     gpus: all
+    shm_size: "4gb"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1g
+      - /root/.config:rw,noexec,nosuid,size=16m
+    stop_grace_period: 30s
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      HF_HOME: /root/.cache/huggingface
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      NJS_BIG_LAMA_SHA256: 344c77bbcb158f17dd143070d1e789f38a66c04202311ae3a258ef66667a9ea9
     volumes:
       - type: bind
-        source: D:/NlsTools/lama/models
+        source: ${NJS_AI_MODELS_ROOT:?Set NJS_AI_MODELS_ROOT in nls-tools/ai-runtime/.env}/lama
         target: /data/models
+        read_only: true
       - type: bind
-        source: D:/NlsTools/lama/input
+        source: ${NJS_AI_DATA_ROOT:?Set NJS_AI_DATA_ROOT in nls-tools/ai-runtime/.env}/workers/lama/input
         target: /data/input
       - type: bind
-        source: D:/NlsTools/lama/output
+        source: ${NJS_AI_DATA_ROOT:?Set NJS_AI_DATA_ROOT in nls-tools/ai-runtime/.env}/workers/lama/output
         target: /data/output
+      - type: bind
+        source: ${NJS_AI_CACHE_ROOT:?Set NJS_AI_CACHE_ROOT in nls-tools/ai-runtime/.env}/lama
+        target: /root/.cache
+    networks:
+      njs-ai:
+        aliases: ["lama-worker"]
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/server-config', timeout=3)"
-      interval: 15s
-      timeout: 5s
-      retries: 30
-      start_period: 180s
+      test: ["CMD", "python", "/usr/local/bin/worker-healthcheck"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 120s
+
+networks:
+  njs-ai:
+    external: true
+    name: ${NJS_AI_NETWORK:-njs-ai}

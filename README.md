@@ -27,15 +27,19 @@ Wywołanie przez klienta API:
 
 ```powershell
 python .\nls-tools\comfyui\rmbg2\scripts\rmbg_api_client.py `
-  "C:\obrazy\zdjecie.png" `
-  --output-dir "D:\ComfyAi\api-results"
+  ".\zdjecie.png" `
+  --output-dir ".\api-results"
 ```
 
-Wagi modelu nie są przechowywane w Git. Przy pierwszym użyciu trafiają do:
+Wagi modelu nie są przechowywane w Git. Ich trwałe położenie wybiera host w
+ignorowanym `nls-tools/ai-runtime/.env`:
 
 ```text
-D:\ComfyAi\models\RMBG\RMBG-2.0
+${NJS_AI_MODELS_ROOT}/comfyui/RMBG/RMBG-2.0
 ```
+
+Gotowe przykłady konfiguracji istnieją osobno dla bieżącej stacji Windows i
+hosta Linux; definicje Compose nie zawierają domyślnej ścieżki dyskowej.
 
 Warunki użycia modelu: https://huggingface.co/briaai/RMBG-2.0
 
